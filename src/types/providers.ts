@@ -27,9 +27,3 @@ export interface WorldcoinHookReturn {
   isReady: boolean
   isInstalled: boolean
 }
-
-export interface ProvidersHookReturn extends AppContextType {
-  // Convenience aliases
-  isWorldcoinReady: boolean
-  isWorldcoinInstalled: boolean
-}

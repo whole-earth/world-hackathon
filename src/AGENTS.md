@@ -66,7 +66,7 @@ This document reflects the current architecture after the refactor to Server Act
   - created_at/updated_at (timestamptz)
   - Implemented in: src/server/services/profiles.ts
 
-Note: Other tables from the original vision (items, votes, credits, unlocks, payments) are not yet implemented in UI/Server Actions.
+Note: Other tables from the original vision (items, votes, credits, unlocks, payments) are not yet implemented in UI. Payments are now scaffolded in backend + hook.
 
 ---
 
@@ -95,6 +95,9 @@ Note: Other tables from the original vision (items, votes, credits, unlocks, pay
 - Existing actions:
   - `verifyWorldcoinAction(input)` → returns `{ ok, nullifier_hash }` and sets cookie.
   - `verifyAndUpsertProfileAction(input)` → returns `{ ok, profile, nullifier_hash }`.
+  - `initiateWorldPayAction({ amountUsd, description? })` → returns `{ ok, reference, to, description? }`. Stores a row in `payments` with status `initiated` bound to the caller's nullifier. Use the returned `reference` and `to` to build the MiniKit `pay` payload on the client.
+  - `confirmWorldPayAction(payload)` → Verifies the MiniKit payment by querying the Developer Portal using `transaction_id` and `reference`, checks ownership and recipient, updates the `payments` row with `status`, `transaction_id`, and token details, and returns `{ ok, success, status }`.
+  - `unlockThemeWithPaymentAction({ reference, themeSlug })` → After a successful confirmation, validates that the payment belongs to the caller and is not failed, then creates an idempotent unlock in `theme_unlocks` with method `payment`. In mock mode, bypasses payment checks and creates an unlock with method `mock`.
 - When adding new mutations/queries, prefer Server Actions and call `ensureVerifiedNullifier()` at the top to bind the call to a verified user.
 - If public/SSR endpoints are needed later, keep the same cookie gate and rate limiting patterns.
 
@@ -137,11 +140,44 @@ Note: Other tables from the original vision (items, votes, credits, unlocks, pay
 - Server
   - src/server/actions/worldcoin.ts
   - src/server/actions/profiles.ts
+  - src/server/actions/payments.ts
   - src/server/lib/world-verify.ts
   - src/server/lib/cookies.ts
   - src/server/services/worldcoin.ts
   - src/server/services/profiles.ts
+  - src/server/services/payments.ts
+  - src/server/services/dev-portal.ts
   - src/server/config/worldcoin.ts
+  - src/server/config/payments.ts
+
+- Client Hooks
+  - src/hooks/useWorldVerification.ts
+  - src/hooks/useWorldPay.ts
+
+- Database Migrations
+  - migrations/2025-09-26T000000_profiles.sql
+  - migrations/2025-09-26T010000_payments.sql
+  - migrations/2025-09-26T011000_payments_hardening.sql
+  - migrations/2025-09-26T012000_theme_unlocks.sql
+
+Env required for payments:
+
+- `WORLD_PAY_TO_ADDRESS` (server) — the recipient address for payments (0x...).
+- `DEV_PORTAL_API_KEY` (server) — used to query Developer Portal for transaction status.
+
+Mock mode behavior:
+
+- If `WORLDCOIN_VERIFY_MOCK=true` (server) and `NEXT_PUBLIC_WORLDCOIN_VERIFY_MOCK=true` (client), payment flow is bypassed:
+  - `initiateWorldPayAction` returns a synthetic `reference` and the configured `to` address without writing to `payments`.
+  - `confirmWorldPayAction` returns `{ ok: true, success: true, status: 'mock-confirmed' }` with no DB updates.
+  - The client hook `useWorldPay()` exposes `isMock` and `autoApproveWorldPay(amountUsd, description?)` for convenience.
+  - No Supabase logging occurs in mock mode; only real (non-mock) transactions are persisted.
+
+Client usage (outline):
+
+- Call `const { initiateWorldPay } = useWorldPay()`.
+- `const { reference, to } = await initiateWorldPay(1.25, 'Unlock Theme: Tools')`.
+- Then construct `MiniKit.commandsAsync.pay({ reference, to, tokens: [...], description })` on the client.
 
 - UI
   - src/components/LandingScreen.tsx

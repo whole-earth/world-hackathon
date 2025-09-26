@@ -1,131 +1,108 @@
 # Whole World Catalog
 
-## Getting Started
+A hackathon mini-app built on the World stack.  
+The app creates a human-verified cultural commons: users submit references, vote with a swipe, and unlock themed catalogs using credits or World Wallet payments.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Premise
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Discovery online is noisy and bot-driven.  
+The Whole World Catalog makes curation human-first:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Proof of Humanity (World ID)** ensures only real people can submit and vote.  
+- **Gasless Wallet (World Wallet)** allows seamless payments and unlocks.  
+- **Credits System** rewards active participation.  
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The result: a living, bot-free catalog of cultural references organized by theme.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Core Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Authentication
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Users sign in with **World ID**.  
+- Each profile is unique and tied to a verified human.
 
-## Deploy on Vercel
+### Submissions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Submit a cultural reference: title, thumbnail, theme (e.g., environment, shelter, tools).  
+- Stored in Supabase as a pending submission.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Voting
 
-## Worldcoin / MiniKit
+- Tinder-style swipe UI: swipe right = yay, left = nay.  
+- Each vote updates counters and earns the voter **+1 credit** (up to 30/day).  
+- Votes are one-per-user-per-item, enforced in the backend.
 
-- Status widget: see `src/components/WorldcoinStatus.tsx` on the home page.
-- MiniKit is detected via `@worldcoin/minikit-js` within `AppProvider`.
-- Verification: Server Action `verifyWorldcoinAction` (no REST needed for internal flows).
-- Config: client `WORLD_ACTION` in `src/config/worldcoin.ts`; server config in `src/server/config/worldcoin.ts`.
-- Transaction debug proxy: `src/app/api/worldcoin/transaction/debug/route.ts`.
+### Catalog Promotion
 
-### Environment
+- Items reaching **30+ yays** with at least **70% positive ratio** are promoted to the Catalog.  
+- Promoted items are permanently visible in their theme.
 
-Add these to `.env` (see `.env` for placeholders):
+### Unlocking Themes
 
-```
-APP_ID=your_app_id
-# Optional for local dev only
-WORLDCOIN_VERIFY_MOCK=true
-# Optional: if you have a developer API key
-# WORLDCOIN_DEV_API_KEY=...
-```
+- Themes are locked by default. Unlock in two ways:
+  1. **Credits**: Spend 30 credits earned by voting.  
+  2. **Payments**: Pay via World Wallet.  
+- Unlock state is tracked per user in Supabase.
 
-### Testing in World App
+### Browsing
 
-1. Run: `npm run dev` (default port 3022)
-2. Expose locally: `ngrok http http://localhost:3022`
-3. Open the ngrok URL inside World App (Mini Apps) to enable MiniKit
-4. The status panel should show “MiniKit Installed: ✅ Yes” and “Ready: ✅ Yes” inside World App
+- **Swipe Feed**: Pending submissions to vote on.  
+- **Catalog View**: Accepted items organized by theme.
 
-Use the “Transaction Debug Tool” in the status panel to fetch debug info for a `transaction_id` via `/api/worldcoin/transaction/debug`.
+---
 
-### Verification (Server Action)
+## Data Model
 
-Call the server action directly from the client after obtaining a MiniKit proof:
+- **Profiles**: world_user_id, credits, metadata.  
+- **Items**: submissions and catalog entries with status, theme, title, thumbnail, yay/nay counts.  
+- **Votes**: one per user per item, yay/nay boolean.  
+- **User Credits**: earned from votes, spent on unlocks.  
+- **Theme Unlocks**: record of which themes a user has unlocked and how (credits or payment).  
+- **Payments**: audit of World Wallet transactions.
 
-```
-import { verifyWorldcoinAction } from '@/server/actions'
+---
 
-const { finalPayload } = await MiniKit.commandsAsync.verify({ action: 'your-action' })
-const result = await verifyWorldcoinAction({ payload: finalPayload, signal: 'optional' })
-// result = { ok: true, nullifier_hash, verifyRes }
-```
+## Tech Stack
 
-If `WORLDCOIN_VERIFY_MOCK=true`, passing `{ nullifier_hash: 'dev-nullifier' }` is sufficient in local development.
+- **Next.js (App Router)** — frontend and API routes  
+- **Supabase (Postgres + RLS)** — storage, auth integration, credit accounting  
+- **World ID** — proof of humanity  
+- **World Wallet** — payments and unlocks  
 
-### Profile registration (Server Action)
+---
 
-Registration (saving a username for a verified World user) is handled via a Next.js Server Action, not a REST API:
+## Demo Flow
 
-- Action: `verifyAndUpsertProfileAction` in `src/server/actions`
-- Usage examples:
+1. Log in with World ID.  
+2. Submit a reference (thumbnail + title + theme).  
+3. Swipe vote on others’ submissions, earn credits.  
+4. Unlock a theme using credits or World Wallet payment.  
+5. Browse the Catalog of accepted items.  
 
-Client with a real MiniKit payload:
+---
 
-```
-import { verifyAndUpsertProfileAction } from '@/server/actions'
+## Constraints
 
-await verifyAndUpsertProfileAction({
-  username: 'alice',
-  payload: finalPayload, // ISuccessResult from MiniKit
-  signal: 'optional',
-})
-```
+- Max 30 votes/day per user.  
+- Credits cannot go negative.  
+- One vote per user per item.  
+- Items immutable after submission.  
 
-Local dev (mock):
+---
 
-```
-await verifyAndUpsertProfileAction({
-  world_username: 'alice',
-  nullifier_hash: 'dev-nullifier',
-})
-```
+## Stretch Goals
 
-This keeps secrets and DB access on the server while avoiding an extra API layer for app-internal flows.
+- Auto payouts to accepted submitters.  
+- Daily cultural challenges (theme prompts).  
+- Farcaster mini-app integration.  
 
-Rate limiting
+---
 
-- Basic in-memory limit is applied in server actions (10/min per IP). See `src/server/lib/rate-limit.ts`.
+## Progress Log
 
-### Pulling World Usernames
-
-- Schema: migrations/2025-09-26T010000_profiles_add_world_username.sql adds `world_username` (unique).
-- Registration is via Server Action (no REST): use `verifyAndUpsertProfileAction` to upsert `profiles` with `username`/`world_username` after verification (or mock in dev).
-- UI: `WorldUsernameCard` tries to detect a username from query params (e.g. `?world_username=`) and lets you save it after verification.
-
-## Domain Model (Channels & Posts)
-
-- Channels: Replaces the old “themes” concept; defined in the `channels` table (seeded with a few defaults). Add/edit channels by inserting into this table.
-- Posts: User submissions (what “items” used to be). A post belongs to a channel and is submitted by a verified World user (keyed by `worldcoin_nullifier`).
-- Votes: One per user per post (PK `(post_id, voter_nullifier)`).
-- User credits: Tracked per `worldcoin_nullifier`.
-- Channel unlocks: Records which user unlocked which channel (via credits or payment).
-- Payments: World wallet payments for unlocks or credits.
-
-Migrations:
-- `migrations/2025-09-26T020000_channels_and_posts.sql` defines `channels`, `posts`, `votes`, `user_credits`, `channel_unlocks`, and `payments`.
+- **Night 0**: PRD, World + Supabase providers, basic UI
+- **Day 1**: Unlock flow (credits + payment), catalog view, threshold logic.

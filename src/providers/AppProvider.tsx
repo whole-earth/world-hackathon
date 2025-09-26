@@ -1,10 +1,12 @@
 'use client'
 
 import React, { ReactNode } from 'react'
-import type { ProvidersHookReturn } from '@/types/providers'
+import type { AppContextType } from '@/types/providers'
 import { SupabaseProvider, useSupabase as useSupabaseInternal } from './SupabaseProvider'
 import { MinikitProvider, useWorldcoin as useWorldcoinInternal } from './MinikitProvider'
 import { WorldAuthProvider } from './WorldAuthProvider'
+import { ToastProvider } from './ToastProvider'
+import { CreditsProvider } from './CreditsProvider'
 
 // Split providers are composed here and guarded by an error boundary
 
@@ -58,7 +60,11 @@ export function AppProvider({ children }: AppProviderProps) {
       <SupabaseProvider>
         <MinikitProvider>
           <WorldAuthProvider>
-            {children}
+            <CreditsProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </CreditsProvider>
           </WorldAuthProvider>
         </MinikitProvider>
       </SupabaseProvider>
@@ -76,7 +82,7 @@ export function useSupabaseAdmin() {
 export function useSupabase() { return useSupabaseInternal() }
 export function useWorldcoin() { return useWorldcoinInternal() }
 
-export function useApp(): ProvidersHookReturn {
+export function useApp(): AppContextType {
   const supabase = useSupabaseInternal()
   const { minikit, isReady, isInstalled } = useWorldcoinInternal()
   return {
@@ -87,4 +93,4 @@ export function useApp(): ProvidersHookReturn {
   }
 }
 
-export function useProviders(): ProvidersHookReturn { return useApp() }
+export function useProviders(): AppContextType { return useApp() }

@@ -33,7 +33,7 @@ export async function verifyWorldcoinAction(input: VerifyActionInput) {
 
   const res = await verifyWorldcoinProof(input)
   if (res?.nullifier_hash) {
-    setWorldNullifierCookie(res.nullifier_hash)
+    await setWorldNullifierCookie(res.nullifier_hash)
   }
   return { ok: true, ...res }
 }
