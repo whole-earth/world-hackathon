@@ -1,7 +1,8 @@
 import 'server-only'
 
-import { verifyCloudProof, type ISuccessResult, type IVerifyResponse } from '@worldcoin/minikit-js'
-import { getWorldcoinServerConfig } from '@/server/config/worldcoin'
+import { verifyCloudProof, type IVerifyResponse } from '@worldcoin/minikit-js'
+import { getWorldcoinServerConfig, isWorldcoinMockEnabled } from '@/server/config/worldcoin'
+import type { VerifyInput, VerifySuccess } from '@/types'
 
 export class WorldcoinVerifyError extends Error {
   statusCode: number
@@ -16,23 +17,9 @@ export class WorldcoinVerifyError extends Error {
   }
 }
 
-export type VerifyInput = {
-  // Standard MiniKit success result (preferred)
-  payload?: ISuccessResult
-  // Optional loosened dev shape support (mock/local):
-  nullifier_hash?: string
-
-  // Action/signal provided by the client
-  action?: string
-  signal?: string
-}
-
-type AppId = `app_${string}`
-
-export type VerifySuccess = { nullifier_hash: string; verifyRes?: IVerifyResponse }
 
 export async function verifyWorldcoinProof(input: VerifyInput): Promise<VerifySuccess> {
-  const mock = String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+  const mock = isWorldcoinMockEnabled()
 
   if (mock) {
     const nh = input.payload?.nullifier_hash || input.nullifier_hash
@@ -43,7 +30,7 @@ export async function verifyWorldcoinProof(input: VerifyInput): Promise<VerifySu
   }
 
   const { appId, action: defaultAction } = getWorldcoinServerConfig()
-  if (!appId) throw new WorldcoinVerifyError('Missing APP_ID', { statusCode: 500 })
+  if (!appId) throw new WorldcoinVerifyError('Missing WORLD_APP_ID', { statusCode: 500 })
 
   const payload = input.payload
   const action = input.action || defaultAction

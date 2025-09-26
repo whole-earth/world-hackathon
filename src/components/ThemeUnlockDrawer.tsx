@@ -26,7 +26,7 @@ type Props = {
 
 type Step = 'intro' | 'method' | 'processing' | 'done' | 'error'
 
-type Toast = { id: number; kind: 'success' | 'error' | 'info'; text: string }
+// Toasts handled by provider; local type not needed
 
 export function ThemeUnlockDrawer({ open, onOpenChange, themeSlug, themeTitle, onUnlocked }: Props) {
   const { isInstalled } = useWorldcoin()
@@ -114,7 +114,7 @@ export function ThemeUnlockDrawer({ open, onOpenChange, themeSlug, themeTitle, o
     try {
       setStep('processing')
       setMessage('Spending credits…')
-      const res = await spendCreditsAndUnlockAction({ themeSlug, cost: 20 })
+      await spendCreditsAndUnlockAction({ themeSlug, cost: 20 })
       await refreshCredits()
       setStep('done')
       setMessage('Unlocked!')
@@ -126,7 +126,7 @@ export function ThemeUnlockDrawer({ open, onOpenChange, themeSlug, themeTitle, o
       setMessage(m)
       pushToast('error', m)
     }
-  }, [onUnlocked, themeSlug, pushToast])
+  }, [onUnlocked, themeSlug, pushToast, refreshCredits])
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>

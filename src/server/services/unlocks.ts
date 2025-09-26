@@ -1,22 +1,7 @@
 import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-
-export type ThemeUnlockRow = {
-  id: string
-  worldcoin_nullifier: string
-  theme_slug: string
-  method: 'payment' | 'credits' | 'mock'
-  payment_reference: string | null
-  created_at: string
-}
-
-export type CreateThemeUnlockInput = {
-  worldcoin_nullifier: string
-  theme_slug: string
-  method: 'payment' | 'credits' | 'mock'
-  payment_reference?: string | null
-}
+import type { ThemeUnlockRow, CreateThemeUnlockInput } from '@/types'
 
 export async function createThemeUnlockIfAbsent(input: CreateThemeUnlockInput): Promise<ThemeUnlockRow> {
   const admin = getSupabaseAdmin()
@@ -49,3 +34,31 @@ export async function getThemeUnlocksByNullifier(nullifier: string): Promise<The
   return (data as ThemeUnlockRow[]) || []
 }
 
+// Efficient existence check for a specific theme unlock
+export async function isThemeUnlocked(nullifier: string, slug: string): Promise<boolean> {
+  const admin = getSupabaseAdmin()
+  const { data, error } = await admin
+    .from('theme_unlocks')
+    .select('id', { head: true, count: 'exact' })
+    .eq('worldcoin_nullifier', nullifier)
+    .eq('theme_slug', slug)
+  if (error) throw new Error(error.message)
+  // When head: true, data is null; rely on count
+  // Some clients may not return count unless requested; we requested exact
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyRes = data as any
+  const count = typeof anyRes?.length === 'number' ? anyRes.length : (error as unknown as { count?: number })?.count
+  // Fallback: when count not resolvable, try a maybeSingle select
+  if (typeof count !== 'number') {
+    const single = await admin
+      .from('theme_unlocks')
+      .select('id')
+      .eq('worldcoin_nullifier', nullifier)
+      .eq('theme_slug', slug)
+      .limit(1)
+      .maybeSingle()
+    if (single.error) throw new Error(single.error.message)
+    return Boolean(single.data)
+  }
+  return (count as number) > 0
+}

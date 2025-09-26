@@ -1,28 +1,7 @@
 import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-
-export type PaymentRow = {
-  id: string
-  reference: string
-  worldcoin_nullifier: string
-  amount_usd: number
-  to_address: string
-  description: string | null
-  status: string
-  transaction_id: string | null
-  token_symbol: string | null
-  token_amount_wei: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type CreateInitiatedPaymentInput = {
-  worldcoin_nullifier: string
-  amount_usd: number
-  to_address: string
-  description: string | null
-}
+import type { PaymentRow, CreateInitiatedPaymentInput, UpdatePaymentPatch } from '@/types'
 
 export async function createInitiatedPayment(input: CreateInitiatedPaymentInput): Promise<PaymentRow> {
   const admin = getSupabaseAdmin()
@@ -62,10 +41,6 @@ export async function findPaymentByReference(reference: string): Promise<Payment
   if (error) throw new Error(error.message)
   return (data as PaymentRow) || null
 }
-
-export type UpdatePaymentPatch = Partial<
-  Pick<PaymentRow, 'status' | 'transaction_id' | 'token_symbol' | 'token_amount_wei'>
->
 
 export async function updatePaymentByReference(reference: string, patch: UpdatePaymentPatch): Promise<PaymentRow> {
   const admin = getSupabaseAdmin()

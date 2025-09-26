@@ -8,26 +8,16 @@ import {
   type ISuccessResult,
 } from "@worldcoin/minikit-js";
 import { verifyWorldcoinAction } from "@/server/actions";
-import { WORLD_ACTION } from "@/config/worldcoin";
-
-type WorldAuthContextValue = {
-  verified: boolean | null;
-  nullifier: string | null;
-  loading: boolean;
-  message: string | null;
-  isInstalled: boolean;
-  verify: () => Promise<void>;
-};
+import type { WorldAuthContextValue } from "@/types/auth";
+import { LOCAL_WORLD_NULLIFIER_KEY } from "@/constants";
 
 const WorldAuthContext = createContext<WorldAuthContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "worldcoin_nullifier";
-
 function getStoredNullifier(): string | null {
-  try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
+  try { return localStorage.getItem(LOCAL_WORLD_NULLIFIER_KEY); } catch { return null; }
 }
 function setStoredNullifier(nh: string) {
-  try { localStorage.setItem(STORAGE_KEY, nh); } catch {}
+  try { localStorage.setItem(LOCAL_WORLD_NULLIFIER_KEY, nh); } catch {}
 }
 
 export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
@@ -37,7 +27,9 @@ export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const action = useMemo(() => WORLD_ACTION, []);
+  // Read at build-time; safe for client bundle
+  const WORLD_ACTION = (process.env.NEXT_PUBLIC_WORLD_ACTION || 'voting-action').trim();
+  const action = useMemo(() => WORLD_ACTION, [WORLD_ACTION]);
   const signal = undefined as string | undefined;
   const MOCK = process.env.NEXT_PUBLIC_WORLDCOIN_VERIFY_MOCK === "true";
 
@@ -48,7 +40,7 @@ export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
     setVerified(Boolean(nh));
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) {
+      if (e.key === LOCAL_WORLD_NULLIFIER_KEY) {
         const next = e.newValue;
         setNullifier(next);
         setVerified(Boolean(next));

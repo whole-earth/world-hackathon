@@ -25,14 +25,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased max-w-[700px] mx-auto`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AppProvider>
-          <div className="relative">
+          <div className="flex min-h-dvh flex-col">
             <HeaderCredits />
-            {children}
+            <main className="relative flex-1">
+              {children}
+            </main>
           </div>
         </AppProvider>
       </body>

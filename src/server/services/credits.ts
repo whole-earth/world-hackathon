@@ -1,13 +1,7 @@
 import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-
-export type UserCreditsRow = {
-  worldcoin_nullifier: string
-  balance: number
-  updated_at: string
-  created_at: string
-}
+import type { UserCreditsRow } from '@/types'
 
 export async function getUserCredits(nullifier: string): Promise<UserCreditsRow> {
   try {
@@ -38,7 +32,7 @@ export async function getUserCredits(nullifier: string): Promise<UserCreditsRow>
         updated_at: new Date().toISOString(),
       }
     )
-  } catch (err) {
+  } catch {
     // Graceful fallback when migrations are not yet applied
     return {
       worldcoin_nullifier: nullifier,

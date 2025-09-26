@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { MiniKit } from '@worldcoin/minikit-js'
 import { MiniKitProvider as MiniKitSDKProvider } from '@worldcoin/minikit-js/minikit-provider'
-import type { MinikitContextType } from '@/types/providers'
+import type { MinikitContextType } from '@/types'
 
 const MinikitContext = createContext<MinikitContextType | undefined>(undefined)
 

@@ -3,19 +3,10 @@
 import { upsertProfileByNullifier } from '@/server/services'
 import { headers } from 'next/headers'
 import { assertRateLimit } from '@/server/lib/rate-limit'
-import type { ISuccessResult } from '@worldcoin/minikit-js'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
+import type { VerifyAndUpsertInput, VerifyAndUpsertResult } from '@/types'
 
-export type VerifyAndUpsertInput = {
-  payload?: ISuccessResult
-  nullifier_hash?: string
-  action?: string
-  signal?: string
-  username?: string
-  world_username?: string
-}
-
-export async function verifyAndUpsertProfileAction(input: VerifyAndUpsertInput) {
+export async function verifyAndUpsertProfileAction(input: VerifyAndUpsertInput): Promise<VerifyAndUpsertResult> {
   const { username, world_username } = input
   const finalUsername = (world_username || username)?.trim()
   if (!finalUsername) throw new Error('username or world_username is required')

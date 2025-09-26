@@ -1,12 +1,13 @@
 'use client'
 
 import React, { ReactNode } from 'react'
-import type { AppContextType } from '@/types/providers'
+import type { AppContextType } from '@/types'
 import { SupabaseProvider, useSupabase as useSupabaseInternal } from './SupabaseProvider'
 import { MinikitProvider, useWorldcoin as useWorldcoinInternal } from './MinikitProvider'
 import { WorldAuthProvider } from './WorldAuthProvider'
 import { ToastProvider } from './ToastProvider'
 import { CreditsProvider } from './CreditsProvider'
+import { UnlockedThemesProvider } from './UnlockedThemesProvider'
 
 // Split providers are composed here and guarded by an error boundary
 
@@ -60,11 +61,13 @@ export function AppProvider({ children }: AppProviderProps) {
       <SupabaseProvider>
         <MinikitProvider>
           <WorldAuthProvider>
-            <CreditsProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </CreditsProvider>
+            <UnlockedThemesProvider>
+              <CreditsProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </CreditsProvider>
+            </UnlockedThemesProvider>
           </WorldAuthProvider>
         </MinikitProvider>
       </SupabaseProvider>

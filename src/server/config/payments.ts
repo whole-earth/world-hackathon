@@ -21,4 +21,3 @@ export function getPaymentsServerConfig(): PaymentsConfig {
   cached = { toAddress: to }
   return cached
 }
-

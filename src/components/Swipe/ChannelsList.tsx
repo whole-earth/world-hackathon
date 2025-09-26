@@ -1,11 +1,14 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ThemeUnlockDrawer } from '@/components/ThemeUnlockDrawer'
 import { useEffect } from 'react'
-import { getUnlockedThemesAction } from '@/server/actions'
+import { useUnlockedThemes } from '@/providers/UnlockedThemesProvider'
 
 export function ChannelsList({ onOpenFilters }: { onOpenFilters?: () => void }) {
+  const router = useRouter()
+  const { isUnlocked, addUnlocked, refresh } = useUnlockedThemes()
   // Static channels
   const channels = [
     { id: 'env', title: 'Environment', desc: 'Climate, ecology, energy' },
@@ -15,35 +18,25 @@ export function ChannelsList({ onOpenFilters }: { onOpenFilters?: () => void }) 
     { id: 'crypto', title: 'Cryptography', desc: 'Security, protocols' },
   ];
 
-  const [unlocked, setUnlocked] = useState<Set<string>>(() => new Set())
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<{ id: string; title: string } | null>(null)
-
-  const isUnlocked = useMemo(() => (id: string) => unlocked.has(id), [unlocked])
+  // Optional: light periodic refresh to catch server-side updates from other devices
   useEffect(() => {
-    let active = true
-    const load = async () => {
-      try {
-        const res = await getUnlockedThemesAction()
-        if (!active) return
-        setUnlocked(new Set(res.themes))
-      } catch {
-        // ignore
-      }
-    }
-    load()
-    // Optionally, poll every 10s for changes
-    const id = window.setInterval(load, 10000)
-    return () => { active = false; window.clearInterval(id) }
-  }, [])
+    const id = window.setInterval(() => { void refresh() }, 30000)
+    return () => window.clearInterval(id)
+  }, [refresh])
   const openUnlock = (id: string, title: string) => {
-    if (isUnlocked(id)) return
+    if (isUnlocked(id)) {
+      router.push(`/themes/${id}`)
+      return
+    }
     setSelected({ id, title })
     setDrawerOpen(true)
   }
   const handleUnlocked = (slug: string) => {
-    setUnlocked(prev => new Set([...Array.from(prev), slug]))
+    addUnlocked(slug)
     setDrawerOpen(false)
+    router.push(`/themes/${slug}`)
   }
 
   return (

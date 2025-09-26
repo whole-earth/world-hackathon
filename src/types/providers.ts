@@ -22,8 +22,5 @@ export interface MinikitContextType {
   isWorldcoinInstalled: boolean
 }
 
-export interface WorldcoinHookReturn {
-  minikit: typeof MiniKit
-  isReady: boolean
-  isInstalled: boolean
-}
+// If you need a typed return shape for hooks like useWorldcoin(),
+// prefer importing MinikitContextType and mapping its keys.

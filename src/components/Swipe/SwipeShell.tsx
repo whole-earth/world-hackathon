@@ -79,7 +79,6 @@ export function SwipeShell() {
   const pointerIdRef = useRef<number | null>(null);
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     pointerIdRef.current = e.pointerId;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     startXRef.current = e.clientX;
     startYRef.current = e.clientY;
     startProgressRef.current = progress;
@@ -104,9 +103,6 @@ export function SwipeShell() {
     setProgress(next);
   }, []);
   const onPointerUp = useCallback((e: React.PointerEvent) => {
-    if (pointerIdRef.current != null) {
-      (e.currentTarget as HTMLElement).releasePointerCapture(pointerIdRef.current);
-    }
     pointerIdRef.current = null;
     onTouchEnd();
   }, [onTouchEnd]);
@@ -114,7 +110,10 @@ export function SwipeShell() {
   const translatePx = useMemo(() => -progress * getContainerWidth(), [progress]);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 overflow-hidden bg-black text-white">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 w-full overflow-hidden bg-black text-white"
+    >
       <div
         className="absolute inset-0 flex h-full w-[200%] touch-pan-y select-none"
         style={{ transform: `translate3d(${translatePx}px, 0, 0)`, transition: isDragging ? "none" : "transform 220ms ease" }}
@@ -133,9 +132,10 @@ export function SwipeShell() {
         </section>
       </div>
 
-      {/* Bottom pill tabs */}
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-        <div className="relative w-56 rounded-full bg-white/10 backdrop-blur px-1 py-1 flex items-center border border-white/15">
+      {/* Bottom pill tabs (body is max-width:700px) */}
+      <div className="absolute bottom-4 left-0 right-0">
+        <div className="w-full px-4 flex justify-center">
+          <div className="relative w-56 rounded-full bg-white/10 backdrop-blur px-1 py-1 flex items-center border border-white/15">
           {/* Sliding indicator */}
           <div
             className="absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-white/20"
@@ -156,6 +156,7 @@ export function SwipeShell() {
           >
             Channels
           </button>
+          </div>
         </div>
       </div>
     </div>

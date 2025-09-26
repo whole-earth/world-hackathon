@@ -52,7 +52,7 @@ This document reflects the current architecture after the refactor to Server Act
   - Do not trust localStorage for authorization.
 
 - Env Vars
-  - Server: `APP_ID` (Worldcoin App ID), `WORLDCOIN_VERIFY_MOCK` (true/false)
+  - Server: `WORLD_APP_ID` (Worldcoin App ID), `WORLDCOIN_VERIFY_MOCK` (true/false)
   - Client: `NEXT_PUBLIC_WORLD_ACTION` (action slug), `NEXT_PUBLIC_WORLDCOIN_VERIFY_MOCK` (true/false)
 
 ---
@@ -153,6 +153,18 @@ Note: Other tables from the original vision (items, votes, credits, unlocks, pay
 - Client Hooks
   - src/hooks/useWorldVerification.ts
   - src/hooks/useWorldPay.ts
+
+- Types
+  - src/types/index.ts (barrel)
+  - src/types/auth.ts
+  - src/types/worldcoin.ts
+  - src/types/payments.ts
+  - src/types/credits.ts
+  - src/types/unlocks.ts
+  - src/types/profiles.ts
+
+- Constants
+  - src/constants.ts
 
 - Database Migrations
   - migrations/2025-09-26T000000_profiles.sql

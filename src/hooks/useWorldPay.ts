@@ -3,23 +3,13 @@
 import { useCallback } from 'react'
 import { initiateWorldPayAction, confirmWorldPayAction } from '@/server/actions'
 import type { MiniAppPaymentSuccessPayload } from '@worldcoin/minikit-js'
-
-export type InitiateWorldPayParams = {
-  amountUsd: number
-  description?: string
-}
-
-export type InitiateWorldPayResponse = {
-  reference: string
-  to: string
-  description?: string
-}
+import type { InitiateWorldPayResult } from '@/types'
 
 export function useWorldPay() {
   const isMock = process.env.NEXT_PUBLIC_WORLDCOIN_VERIFY_MOCK === 'true'
-  const initiateWorldPay = useCallback(async (amountUsd: number, description?: string): Promise<InitiateWorldPayResponse> => {
+  const initiateWorldPay = useCallback(async (amountUsd: number, description?: string): Promise<InitiateWorldPayResult> => {
     const res = await initiateWorldPayAction({ amountUsd, description })
-    return { reference: res.reference, to: res.to, description: res.description }
+    return res
   }, [])
 
   const confirmWorldPay = useCallback(async (payload: MiniAppPaymentSuccessPayload) => {
@@ -28,7 +18,7 @@ export function useWorldPay() {
       return await confirmWorldPayAction()
     }
     return await confirmWorldPayAction(payload)
-  }, [])
+  }, [isMock])
 
   const autoApproveWorldPay = useCallback(async (amountUsd: number, description?: string) => {
     if (!isMock) throw new Error('autoApproveWorldPay is only available in mock mode')

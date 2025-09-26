@@ -5,17 +5,12 @@ import { verifyWorldcoinProof } from '@/server/services'
 import { headers } from 'next/headers'
 import { assertRateLimit } from '@/server/lib/rate-limit'
 import { setWorldNullifierCookie } from '@/server/lib/cookies'
+import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
+import type { VerifyActionInput, VerifyActionResult } from '@/types'
 
-export type VerifyActionInput = {
-  payload?: ISuccessResult
-  nullifier_hash?: string
-  action?: string
-  signal?: string
-}
-
-export async function verifyWorldcoinAction(input: VerifyActionInput) {
+export async function verifyWorldcoinAction(input: VerifyActionInput): Promise<VerifyActionResult> {
   // Basic schema checks (no external deps)
-  const isMock = String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+  const isMock = isWorldcoinMockEnabled()
   if (!isMock) {
     if (!input.payload) throw new Error('Missing payload')
     const p = input.payload as Partial<ISuccessResult>

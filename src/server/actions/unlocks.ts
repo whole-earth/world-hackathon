@@ -5,26 +5,17 @@ import { assertRateLimit } from '@/server/lib/rate-limit'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
 import { findPaymentByReference } from '@/server/services/payments'
 import { createThemeUnlockIfAbsent, getThemeUnlocksByNullifier } from '@/server/services/unlocks'
+import { upsertProfileByNullifier } from '@/server/services'
 import { getPaymentsServerConfig } from '@/server/config/payments'
-
-export type UnlockThemeWithPaymentInput = {
-  reference: string
-  themeSlug: string
-}
-
-export type UnlockThemeWithPaymentResult = {
-  ok: true
-  unlocked: boolean
-  themeSlug: string
-  method: 'payment' | 'mock'
-}
+import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
+import type { UnlockThemeWithPaymentInput, UnlockThemeWithPaymentResult, GetUnlockedThemesResult } from '@/types'
 
 function isValidSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length >= 2 && slug.length <= 64
 }
 
 export async function unlockThemeWithPaymentAction(input: UnlockThemeWithPaymentInput): Promise<UnlockThemeWithPaymentResult> {
-  const isMock = String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+  const isMock = isWorldcoinMockEnabled()
   const { reference, themeSlug } = input || ({} as UnlockThemeWithPaymentInput)
   if (!themeSlug || !isValidSlug(themeSlug)) throw new Error('Invalid themeSlug')
 
@@ -36,6 +27,14 @@ export async function unlockThemeWithPaymentAction(input: UnlockThemeWithPayment
   const { nullifier_hash } = await ensureVerifiedNullifier({})
 
   if (isMock) {
+    const mockUsername = `mock-${nullifier_hash.slice(0, 8)}`
+    try {
+      await upsertProfileByNullifier({
+        worldcoin_nullifier: nullifier_hash,
+        username: mockUsername,
+        world_username: null,
+      })
+    } catch {}
     const row = await createThemeUnlockIfAbsent({
       worldcoin_nullifier: nullifier_hash,
       theme_slug: themeSlug,
@@ -69,12 +68,9 @@ export async function unlockThemeWithPaymentAction(input: UnlockThemeWithPayment
   return { ok: true, unlocked: Boolean(row?.id), themeSlug, method: 'payment' }
 }
 
-export type GetUnlockedThemesResult = { ok: true; themes: string[] }
-
 export async function getUnlockedThemesAction(): Promise<GetUnlockedThemesResult> {
   const { nullifier_hash } = await ensureVerifiedNullifier({})
   const rows = await getThemeUnlocksByNullifier(nullifier_hash)
   const themes = rows.map(r => r.theme_slug)
   return { ok: true, themes }
 }
-

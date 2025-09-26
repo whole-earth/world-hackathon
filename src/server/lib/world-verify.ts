@@ -3,6 +3,7 @@ import 'server-only'
 import type { ISuccessResult } from '@worldcoin/minikit-js'
 import { getWorldNullifierFromCookie, setWorldNullifierCookie } from '@/server/lib/cookies'
 import { verifyWorldcoinProof } from '@/server/services'
+import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
 
 export type EnsureVerifyInput = {
   payload?: ISuccessResult
@@ -20,7 +21,7 @@ export async function ensureVerifiedNullifier(input: EnsureVerifyInput): Promise
     return { nullifier_hash: cookieNh, source: 'cookie' }
   }
 
-  const isMock = String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+  const isMock = isWorldcoinMockEnabled()
 
   if (isMock) {
     const nh = input.payload?.nullifier_hash || input.nullifier_hash

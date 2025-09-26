@@ -3,10 +3,17 @@
 import { headers } from 'next/headers'
 import { assertRateLimit } from '@/server/lib/rate-limit'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
+import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
+import { upsertProfileByNullifier } from '@/server/services'
 import { createThemeUnlockIfAbsent } from '@/server/services/unlocks'
 import { getUserCredits, spendCredits } from '@/server/services/credits'
-
-export type GetCreditsResult = { ok: true; balance: number }
+import type {
+  GetCreditsResult,
+  SpendCreditsAndUnlockInput,
+  SpendCreditsAndUnlockResult,
+  AddSwipeCreditInput,
+  AddSwipeCreditResult,
+} from '@/types'
 
 export async function getCreditsAction(): Promise<GetCreditsResult> {
   try {
@@ -17,9 +24,6 @@ export async function getCreditsAction(): Promise<GetCreditsResult> {
     return { ok: true, balance: 0 }
   }
 }
-
-export type SpendCreditsAndUnlockInput = { themeSlug: string; cost?: number }
-export type SpendCreditsAndUnlockResult = { ok: true; unlocked: boolean; balance: number; themeSlug: string }
 
 function isValidSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length >= 2 && slug.length <= 64
@@ -38,6 +42,17 @@ export async function spendCreditsAndUnlockAction(input: SpendCreditsAndUnlockIn
 
   const { nullifier_hash } = await ensureVerifiedNullifier({})
 
+  if (isWorldcoinMockEnabled()) {
+    const mockUsername = `mock-${nullifier_hash.slice(0, 8)}`
+    try {
+      await upsertProfileByNullifier({
+        worldcoin_nullifier: nullifier_hash,
+        username: mockUsername,
+        world_username: null,
+      })
+    } catch {}
+  }
+
   const res = await spendCredits(nullifier_hash, cost, 'unlock', themeSlug)
   if (!res.ok) {
     throw new Error('Not enough credits')
@@ -52,9 +67,6 @@ export async function spendCreditsAndUnlockAction(input: SpendCreditsAndUnlockIn
 
   return { ok: true, unlocked: true, balance: res.balance, themeSlug }
 }
-
-export type AddSwipeCreditInput = { amount?: number; reason?: string }
-export type AddSwipeCreditResult = { ok: true; balance: number }
 
 // Adds swipe credits for the verified user. Default +1.
 export async function addSwipeCreditAction(input?: AddSwipeCreditInput): Promise<AddSwipeCreditResult> {

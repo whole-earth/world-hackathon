@@ -25,7 +25,7 @@ let cached: { appId?: AppId; action: string } | null = null
 export function getWorldcoinServerConfig() {
   if (cached) return cached
 
-  const rawAppId = process.env.APP_ID
+  const rawAppId = process.env.WORLD_APP_ID
   const appId = isValidAppId(rawAppId) ? (rawAppId as AppId) : undefined
 
   const action = normalizeAction(process.env.NEXT_PUBLIC_WORLD_ACTION)
@@ -39,12 +39,15 @@ export function ensureWorldcoinAppId(): AppId {
   const { appId } = getWorldcoinServerConfig()
   if (!appId) {
     const details = [
-      'Missing or invalid Worldcoin APP_ID.',
-      'Set APP_ID in your server environment (e.g., .env.local).',
-      'Example: APP_ID=app_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+      'Missing or invalid Worldcoin WORLD_APP_ID.',
+      'Set WORLD_APP_ID in your server environment (e.g., .env.local).',
+      'Example: WORLD_APP_ID=app_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
     ].join(' ')
     throw new Error(details)
   }
   return appId
 }
 
+export function isWorldcoinMockEnabled(): boolean {
+  return String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+}

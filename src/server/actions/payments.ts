@@ -7,22 +7,11 @@ import { getPaymentsServerConfig } from '@/server/config/payments'
 import { createInitiatedPayment, findPaymentByReference, updatePaymentByReference } from '@/server/services/payments'
 import type { MiniAppPaymentSuccessPayload } from '@worldcoin/minikit-js'
 import { getDeveloperPortalTransaction } from '@/server/services/dev-portal'
-import { ensureWorldcoinAppId } from '@/server/config/worldcoin'
-
-export type InitiateWorldPayInput = {
-  amountUsd: number
-  description?: string
-}
-
-export type InitiateWorldPayResult = {
-  ok: true
-  reference: string
-  to: string
-  description?: string
-}
+import { ensureWorldcoinAppId, isWorldcoinMockEnabled } from '@/server/config/worldcoin'
+import type { InitiateWorldPayInput, InitiateWorldPayResult, ConfirmWorldPayResult } from '@/types'
 
 export async function initiateWorldPayAction(input: InitiateWorldPayInput): Promise<InitiateWorldPayResult> {
-  const isMock = String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+  const isMock = isWorldcoinMockEnabled()
   const { amountUsd, description } = input || {}
   if (typeof amountUsd !== 'number' || Number.isNaN(amountUsd)) {
     throw new Error('amountUsd must be a number')
@@ -60,10 +49,8 @@ export async function initiateWorldPayAction(input: InitiateWorldPayInput): Prom
   return { ok: true, reference: payment.reference, to: payment.to_address, description: payment.description ?? undefined }
 }
 
-export type ConfirmWorldPayResult = { ok: true; success: boolean; status: string }
-
 export async function confirmWorldPayAction(payload?: MiniAppPaymentSuccessPayload): Promise<ConfirmWorldPayResult> {
-  const isMock = String(process.env.WORLDCOIN_VERIFY_MOCK || '').toLowerCase() === 'true'
+  const isMock = isWorldcoinMockEnabled()
   // Rate limit per IP
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'

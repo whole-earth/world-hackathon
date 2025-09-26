@@ -1,22 +1,7 @@
 import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-
-export type UpsertProfileInput = {
-  worldcoin_nullifier: string
-  username: string
-  world_username?: string | null
-}
-
-export type ProfileRow = {
-  id: string
-  worldcoin_nullifier: string
-  username: string
-  world_username: string | null
-  world_app_address: string | null
-  created_at: string
-  updated_at: string
-}
+import type { UpsertProfileInput, ProfileRow } from '@/types'
 
 export async function upsertProfileByNullifier(input: UpsertProfileInput): Promise<ProfileRow> {
   const admin = getSupabaseAdmin()
