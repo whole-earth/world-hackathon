@@ -11,7 +11,7 @@ export type AddSwipeCreditResult = { ok: true; balance: number }
 // DB row shapes
 export type UserCreditsRow = {
   worldcoin_nullifier: string
-  balance: number
+  credits: number
   updated_at: string
   created_at: string
 }

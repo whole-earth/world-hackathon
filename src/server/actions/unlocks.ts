@@ -4,25 +4,25 @@ import { headers } from 'next/headers'
 import { assertRateLimit } from '@/server/lib/rate-limit'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
 import { findPaymentByReference } from '@/server/services/payments'
-import { createThemeUnlockIfAbsent, getThemeUnlocksByNullifier } from '@/server/services/unlocks'
+import { createChannelUnlockIfAbsent, getChannelUnlocksByNullifier } from '@/server/services/unlocks'
 import { upsertProfileByNullifier } from '@/server/services'
 import { getPaymentsServerConfig } from '@/server/config/payments'
 import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
-import type { UnlockThemeWithPaymentInput, UnlockThemeWithPaymentResult, GetUnlockedThemesResult } from '@/types'
+import type { UnlockChannelWithPaymentInput, UnlockChannelWithPaymentResult, GetUnlockedChannelsResult } from '@/types'
 
 function isValidSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && slug.length >= 2 && slug.length <= 64
 }
 
-export async function unlockThemeWithPaymentAction(input: UnlockThemeWithPaymentInput): Promise<UnlockThemeWithPaymentResult> {
+export async function unlockChannelWithPaymentAction(input: UnlockChannelWithPaymentInput): Promise<UnlockChannelWithPaymentResult> {
   const isMock = isWorldcoinMockEnabled()
-  const { reference, themeSlug } = input || ({} as UnlockThemeWithPaymentInput)
-  if (!themeSlug || !isValidSlug(themeSlug)) throw new Error('Invalid themeSlug')
+  const { reference, channelSlug } = input || ({} as UnlockChannelWithPaymentInput)
+  if (!channelSlug || !isValidSlug(channelSlug)) throw new Error('Invalid channelSlug')
 
   // Rate limit per IP
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
-  assertRateLimit(`unlock:${themeSlug}:${ip}`, 30, 60_000)
+  assertRateLimit(`unlock:${channelSlug}:${ip}`, 30, 60_000)
 
   const { nullifier_hash } = await ensureVerifiedNullifier({})
 
@@ -35,13 +35,12 @@ export async function unlockThemeWithPaymentAction(input: UnlockThemeWithPayment
         world_username: null,
       })
     } catch {}
-    const row = await createThemeUnlockIfAbsent({
+    const row = await createChannelUnlockIfAbsent({
       worldcoin_nullifier: nullifier_hash,
-      theme_slug: themeSlug,
-      method: 'mock',
-      payment_reference: null,
+      channel_slug: channelSlug,
+      unlocked_via: 'credits',
     })
-    return { ok: true, unlocked: Boolean(row?.id), themeSlug, method: 'mock' }
+    return { ok: true, unlocked: Boolean(row?.worldcoin_nullifier), channelSlug, method: 'credits' }
   }
 
   if (!reference || reference.length < 16) throw new Error('Invalid reference')
@@ -58,19 +57,18 @@ export async function unlockThemeWithPaymentAction(input: UnlockThemeWithPayment
   if (!payment.transaction_id) throw new Error('Payment not yet submitted')
   if (payment.status === 'failed') throw new Error('Payment failed')
 
-  const row = await createThemeUnlockIfAbsent({
+  const row = await createChannelUnlockIfAbsent({
     worldcoin_nullifier: nullifier_hash,
-    theme_slug: themeSlug,
-    method: 'payment',
-    payment_reference: reference,
+    channel_slug: channelSlug,
+    unlocked_via: 'payment',
   })
 
-  return { ok: true, unlocked: Boolean(row?.id), themeSlug, method: 'payment' }
+  return { ok: true, unlocked: Boolean(row?.worldcoin_nullifier), channelSlug, method: 'payment' }
 }
 
-export async function getUnlockedThemesAction(): Promise<GetUnlockedThemesResult> {
+export async function getUnlockedChannelsAction(): Promise<GetUnlockedChannelsResult> {
   const { nullifier_hash } = await ensureVerifiedNullifier({})
-  const rows = await getThemeUnlocksByNullifier(nullifier_hash)
-  const themes = rows.map(r => r.theme_slug)
-  return { ok: true, themes }
+  const rows = await getChannelUnlocksByNullifier(nullifier_hash)
+  const channels = rows.map(r => r.channel_slug)
+  return { ok: true, channels }
 }

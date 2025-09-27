@@ -19,7 +19,7 @@ export async function getUserCredits(nullifier: string): Promise<UserCreditsRow>
     // Fallback: ensure row exists via upsert, then select again
     const up = await admin
       .from('user_credits')
-      .upsert({ worldcoin_nullifier: nullifier, balance: 0 }, { onConflict: 'worldcoin_nullifier' })
+      .upsert({ worldcoin_nullifier: nullifier, credits: 0 }, { onConflict: 'worldcoin_nullifier' })
       .select('*')
       .maybeSingle()
     if (up.error) throw up.error
@@ -27,7 +27,7 @@ export async function getUserCredits(nullifier: string): Promise<UserCreditsRow>
     return (
       row ?? {
         worldcoin_nullifier: nullifier,
-        balance: 0,
+        credits: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -36,7 +36,7 @@ export async function getUserCredits(nullifier: string): Promise<UserCreditsRow>
     // Graceful fallback when migrations are not yet applied
     return {
       worldcoin_nullifier: nullifier,
-      balance: 0,
+      credits: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -51,9 +51,11 @@ export async function addCredits(nullifier: string, amount: number, reason?: str
       p_amount: amount,
       p_reason: reason ?? null,
     })
+    
     if (error) throw error
     return data as number
-  } catch {
+  } catch (error) {
+    console.error('addCredits: Failed to add credits', { nullifier, amount, reason, error })
     // If migrations not applied, return synthetic next balance (0 + amount)
     return amount
   }

@@ -5,7 +5,8 @@ import { assertRateLimit } from '@/server/lib/rate-limit'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
 import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
 import { upsertProfileByNullifier } from '@/server/services'
-import { createThemeUnlockIfAbsent } from '@/server/services/unlocks'
+import { createChannelUnlockIfAbsent } from '@/server/services/unlocks'
+import { mapThemeToChannel } from '@/constants/themeChannelMap'
 import { getUserCredits, spendCredits } from '@/server/services/credits'
 import type {
   GetCreditsResult,
@@ -19,7 +20,7 @@ export async function getCreditsAction(): Promise<GetCreditsResult> {
   try {
     const { nullifier_hash } = await ensureVerifiedNullifier({})
     const row = await getUserCredits(nullifier_hash)
-    return { ok: true, balance: row.balance }
+    return { ok: true, balance: row.credits }
   } catch {
     return { ok: true, balance: 0 }
   }
@@ -58,11 +59,11 @@ export async function spendCreditsAndUnlockAction(input: SpendCreditsAndUnlockIn
     throw new Error('Not enough credits')
   }
 
-  await createThemeUnlockIfAbsent({
+  const channelSlug = mapThemeToChannel(themeSlug)
+  await createChannelUnlockIfAbsent({
     worldcoin_nullifier: nullifier_hash,
-    theme_slug: themeSlug,
-    method: 'credits',
-    payment_reference: null,
+    channel_slug: channelSlug,
+    unlocked_via: 'credits',
   })
 
   return { ok: true, unlocked: true, balance: res.balance, themeSlug }
@@ -81,5 +82,25 @@ export async function addSwipeCreditAction(input?: AddSwipeCreditInput): Promise
 
   const { nullifier_hash } = await ensureVerifiedNullifier({})
   const next = await (await import('@/server/services/credits')).addCredits(nullifier_hash, amount, reason)
+  return { ok: true, balance: next }
+}
+
+// Sync client credit mutations to server
+export async function syncCreditsAction(input: { amount: number; reason?: string }): Promise<AddSwipeCreditResult> {
+  const { amount, reason = 'client-sync' } = input
+  console.log('syncCreditsAction: Called with', { amount, reason })
+  
+  if (amount <= 0 || amount > 100) throw new Error('Invalid credit amount')
+
+  // Rate limit per IP
+  const h = await headers()
+  const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  assertRateLimit(`credits:sync:${ip}`, 10, 60_000) // up to 10/min per IP
+
+  const { nullifier_hash } = await ensureVerifiedNullifier({})
+  
+  // Use the existing addCredits service
+  const { addCredits } = await import('@/server/services/credits')
+  const next = await addCredits(nullifier_hash, amount, reason)
   return { ok: true, balance: next }
 }

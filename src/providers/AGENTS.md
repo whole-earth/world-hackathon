@@ -7,7 +7,7 @@ This file defines conventions and constraints for everything under `src/provider
 - Composed providers:
   - `SupabaseProvider` — initializes the browser Supabase client using publishable env vars.
   - `MinikitProvider` — wraps the Worldcoin MiniKit SDK provider and exposes readiness flags.
-  - `WorldAuthProvider` — manages World ID verification state and storage sync.
+  - `WorldAuthProvider` — manages World ID verification state; session-scoped storage.
   - `CreditsProvider` — exposes swipe credit balance and mutations for verified users.
   - `ToastProvider` — ephemeral in-app toasts.
   - `AppProvider` — composes the above with an error boundary and re-exports convenience hooks.
@@ -51,7 +51,9 @@ This file defines conventions and constraints for everything under `src/provider
 
 - Centralizes verified state for World ID:
   - `verified: boolean | null`, `nullifier: string | null`, `loading`, `message`, `verify()`.
-- Persists a non-authoritative `localStorage` value for UX only and keeps it in sync across tabs via the `storage` event.
+- Persists a non-authoritative `sessionStorage` value for UX only (session-scoped; clearing the browser session resets the UI). Cross-tab propagation is not used.
+- Does not auto-verify on mount, even in mock mode — users must call `verify()` to enter the flow. In mock mode, `verify()` bypasses Worldcoin checks but still sets the session cookie.
+- See also: `src/providers/auth/AGENTS.md` for auth-specific intent and rationale.
 - Calls the server action `verifyWorldcoinAction()` which also sets/refreshes the HttpOnly cookie (`w_nh`).
 
 ## Credits Provider

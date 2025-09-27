@@ -1,22 +1,23 @@
 "use client"
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ThemeUnlockDrawer } from '@/components/ThemeUnlockDrawer'
+import { ThemeUnlockDrawer } from '@/components/ExplorePanel/ThemeUnlockDrawer'
 import { useEffect } from 'react'
 import { useUnlockedThemes } from '@/providers/UnlockedThemesProvider'
 
-export function ChannelsList({ onOpenFilters }: { onOpenFilters?: () => void }) {
+import { HeaderCreditsPill } from '@/components/Header/HeaderCreditsPill'
+import { THEMES } from '@/constants/themes'
+
+type ChannelsListProps = { showHeader?: boolean }
+
+export function ChannelsList({ showHeader = true }: ChannelsListProps) {
   const router = useRouter()
   const { isUnlocked, addUnlocked, refresh } = useUnlockedThemes()
-  // Static channels
-  const channels = [
-    { id: 'env', title: 'Environment', desc: 'Climate, ecology, energy' },
-    { id: 'tools', title: 'Tools', desc: 'Hardware, software, craft' },
-    { id: 'shelter', title: 'Shelter', desc: 'Housing, architecture' },
-    { id: 'education', title: 'Education', desc: 'Learning, pedagogy' },
-    { id: 'crypto', title: 'Cryptography', desc: 'Security, protocols' },
-  ];
+  // Channels from shared THEMES to avoid duplication
+  const channels = useMemo(() => (
+    Object.entries(THEMES).map(([id, meta]) => ({ id, title: meta.title, desc: meta.desc }))
+  ), [])
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<{ id: string; title: string } | null>(null)
@@ -41,16 +42,16 @@ export function ChannelsList({ onOpenFilters }: { onOpenFilters?: () => void }) 
 
   return (
     <div className="relative h-full w-full">
-      <header className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between">
-        <button
-          className="px-3 py-1 rounded-full bg-white/10 text-sm"
-          onClick={() => onOpenFilters?.()}
-        >
-          Filters
-        </button>
-        <h1 className="text-lg font-semibold">Channels</h1>
-        <div className="w-[72px]" />
-      </header>
+      {showHeader && (
+        <header className="absolute top-0 left-0 right-0 p-4">
+          <div className="relative flex items-center justify-center">
+            <h1 className="text-lg font-semibold text-center">Channels</h1>
+            <div className="absolute right-0">
+              <HeaderCreditsPill />
+            </div>
+          </div>
+        </header>
+      )}
 
       <main className="pt-16 pb-14 h-full overflow-y-auto">
         <ul className="px-4 space-y-3">
@@ -59,6 +60,14 @@ export function ChannelsList({ onOpenFilters }: { onOpenFilters?: () => void }) 
               key={ch.id}
               className="rounded-lg bg-white/5 border border-white/10 p-4 cursor-pointer hover:bg-white/10 transition"
               onClick={() => openUnlock(ch.id, ch.title)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  openUnlock(ch.id, ch.title)
+                }
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>

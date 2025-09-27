@@ -8,6 +8,7 @@ import { WorldAuthProvider } from './WorldAuthProvider'
 import { ToastProvider } from './ToastProvider'
 import { CreditsProvider } from './CreditsProvider'
 import { UnlockedThemesProvider } from './UnlockedThemesProvider'
+import ConsoleCommands from '@/components/util/ConsoleCommands'
 
 // Split providers are composed here and guarded by an error boundary
 
@@ -64,6 +65,7 @@ export function AppProvider({ children }: AppProviderProps) {
             <UnlockedThemesProvider>
               <CreditsProvider>
                 <ToastProvider>
+                  <ConsoleCommands />
                   {children}
                 </ToastProvider>
               </CreditsProvider>

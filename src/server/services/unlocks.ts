@@ -1,47 +1,46 @@
 import 'server-only'
 
 import { getSupabaseAdmin } from '@/lib/supabase/server'
-import type { ThemeUnlockRow, CreateThemeUnlockInput } from '@/types'
+import type { ChannelUnlockRow, CreateChannelUnlockInput } from '@/types'
+import { legacyThemeSlugForChannel } from '@/constants/themeChannelMap'
 
-export async function createThemeUnlockIfAbsent(input: CreateThemeUnlockInput): Promise<ThemeUnlockRow> {
+export async function createChannelUnlockIfAbsent(input: CreateChannelUnlockInput): Promise<ChannelUnlockRow> {
   const admin = getSupabaseAdmin()
-  const { worldcoin_nullifier, theme_slug } = input
-  const method = input.method
-  const payment_reference = input.payment_reference ?? null
+  const { worldcoin_nullifier, channel_slug, unlocked_via } = input
 
   const { data, error } = await admin
-    .from('theme_unlocks')
+    .from('channel_unlocks')
     .upsert(
-      { worldcoin_nullifier, theme_slug, method, payment_reference },
-      { onConflict: 'worldcoin_nullifier,theme_slug', ignoreDuplicates: false }
+      { worldcoin_nullifier, channel_slug, unlocked_via },
+      { onConflict: 'worldcoin_nullifier,channel_slug', ignoreDuplicates: false }
     )
     .select()
     .single()
 
-  // Upsert will update method if an unlock already exists; that's acceptable (idempotent unlock)
+  // Upsert will update unlocked_via if an unlock already exists; that's acceptable (idempotent unlock)
   if (error) throw new Error(error.message)
-  return data as ThemeUnlockRow
+  return data as ChannelUnlockRow
 }
 
-export async function getThemeUnlocksByNullifier(nullifier: string): Promise<ThemeUnlockRow[]> {
+export async function getChannelUnlocksByNullifier(nullifier: string): Promise<ChannelUnlockRow[]> {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
-    .from('theme_unlocks')
+    .from('channel_unlocks')
     .select('*')
     .eq('worldcoin_nullifier', nullifier)
     .order('created_at', { ascending: true })
   if (error) throw new Error(error.message)
-  return (data as ThemeUnlockRow[]) || []
+  return (data as ChannelUnlockRow[]) || []
 }
 
-// Efficient existence check for a specific theme unlock
-export async function isThemeUnlocked(nullifier: string, slug: string): Promise<boolean> {
+// Efficient existence check for a specific channel unlock
+export async function isChannelUnlocked(nullifier: string, slug: string): Promise<boolean> {
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
-    .from('theme_unlocks')
-    .select('id', { head: true, count: 'exact' })
+    .from('channel_unlocks')
+    .select('worldcoin_nullifier', { head: true, count: 'exact' })
     .eq('worldcoin_nullifier', nullifier)
-    .eq('theme_slug', slug)
+    .eq('channel_slug', slug)
   if (error) throw new Error(error.message)
   // When head: true, data is null; rely on count
   // Some clients may not return count unless requested; we requested exact
@@ -51,14 +50,40 @@ export async function isThemeUnlocked(nullifier: string, slug: string): Promise<
   // Fallback: when count not resolvable, try a maybeSingle select
   if (typeof count !== 'number') {
     const single = await admin
-      .from('theme_unlocks')
-      .select('id')
+      .from('channel_unlocks')
+      .select('worldcoin_nullifier')
       .eq('worldcoin_nullifier', nullifier)
-      .eq('theme_slug', slug)
+      .eq('channel_slug', slug)
       .limit(1)
       .maybeSingle()
     if (single.error) throw new Error(single.error.message)
-    return Boolean(single.data)
+    if (single.data) return true
+    // Fallback: check legacy theme slug alias (e.g., 'crypto')
+    const legacy = legacyThemeSlugForChannel(slug)
+    if (legacy) {
+      const singleLegacy = await admin
+        .from('channel_unlocks')
+        .select('worldcoin_nullifier')
+        .eq('worldcoin_nullifier', nullifier)
+        .eq('channel_slug', legacy)
+        .limit(1)
+        .maybeSingle()
+      if (singleLegacy.error) throw new Error(singleLegacy.error.message)
+      return Boolean(singleLegacy.data)
+    }
+    return false
   }
-  return (count as number) > 0
+  if ((count as number) > 0) return true
+  // Fallback alias check when count is zero
+  const legacy = legacyThemeSlugForChannel(slug)
+  if (!legacy) return false
+  const singleLegacy = await admin
+    .from('channel_unlocks')
+    .select('worldcoin_nullifier')
+    .eq('worldcoin_nullifier', nullifier)
+    .eq('channel_slug', legacy)
+    .limit(1)
+    .maybeSingle()
+  if (singleLegacy.error) throw new Error(singleLegacy.error.message)
+  return Boolean(singleLegacy.data)
 }

@@ -22,7 +22,13 @@ function validateEnvironment() {
 
 function createBrowserSupabase(): SupabaseClient {
   const { supabaseUrl, supabasePublishableKey } = validateEnvironment()
-  return createClient(supabaseUrl, supabasePublishableKey)
+  return createClient(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      // Avoid writing any auth/session data to localStorage; we don't use Supabase Auth here
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
 }
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {

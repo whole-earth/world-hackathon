@@ -7,17 +7,18 @@ import {
   VerificationLevel,
   type ISuccessResult,
 } from "@worldcoin/minikit-js";
-import { verifyWorldcoinAction } from "@/server/actions";
+import { verifyHumanAndUpsertProfileAction } from "@/server/actions";
 import type { WorldAuthContextValue } from "@/types/auth";
 import { LOCAL_WORLD_NULLIFIER_KEY } from "@/constants";
 
 const WorldAuthContext = createContext<WorldAuthContextValue | undefined>(undefined);
 
 function getStoredNullifier(): string | null {
-  try { return localStorage.getItem(LOCAL_WORLD_NULLIFIER_KEY); } catch { return null; }
+  // Session-scoped storage: clearing browser session resets verification UI
+  try { return sessionStorage.getItem(LOCAL_WORLD_NULLIFIER_KEY); } catch { return null; }
 }
 function setStoredNullifier(nh: string) {
-  try { localStorage.setItem(LOCAL_WORLD_NULLIFIER_KEY, nh); } catch {}
+  try { sessionStorage.setItem(LOCAL_WORLD_NULLIFIER_KEY, nh); } catch {}
 }
 
 export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
@@ -33,31 +34,26 @@ export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
   const signal = undefined as string | undefined;
   const MOCK = process.env.NEXT_PUBLIC_WORLDCOIN_VERIFY_MOCK === "true";
 
-  // Initialize and keep in sync with storage (multi-tab safety)
+  // Initialize from session storage (per-tab/session). No cross-tab persistence.
   useEffect(() => {
     const nh = getStoredNullifier();
     setNullifier(nh);
     setVerified(Boolean(nh));
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === LOCAL_WORLD_NULLIFIER_KEY) {
-        const next = e.newValue;
-        setNullifier(next);
-        setVerified(Boolean(next));
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    // No cross-tab sync for sessionStorage.
+    return () => {}
+  }, [MOCK]);
 
   const verify = useCallback(async () => {
+    if (loading) return
     setLoading(true);
     setMessage(null);
     try {
       if (MOCK && !isInstalled) {
         const nh = "dev-nullifier";
-        // Call server action to set secure cookie even in mock mode
-        try { await verifyWorldcoinAction({ nullifier_hash: nh }); } catch {}
+        const fallbackUsername = `user-${nh.slice(0, 6)}`;
+        try {
+          await verifyHumanAndUpsertProfileAction({ nullifier_hash: nh, username: fallbackUsername });
+        } catch {}
         setStoredNullifier(nh);
         setNullifier(nh);
         setVerified(true);
@@ -79,26 +75,31 @@ export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Verification cancelled or failed in World App");
       }
 
-      const data = await verifyWorldcoinAction({
+      const nh: string | undefined = (finalPayload as ISuccessResult)?.nullifier_hash;
+      if (!nh) throw new Error("Missing nullifier_hash in response");
+      const world_username: string | undefined = (minikit as { user?: { username?: string } })?.user?.username || undefined;
+      if (!world_username) {
+        throw new Error('Could not retrieve World username. Please open in World App.');
+      }
+      const data = await verifyHumanAndUpsertProfileAction({
         payload: finalPayload as ISuccessResult,
         action,
         signal,
+        world_username,
+        username: world_username,
       });
       if (!data?.ok) throw new Error("Verification failed");
-
-      const nh: string | undefined = data?.nullifier_hash;
-      if (!nh) throw new Error("Missing nullifier_hash in response");
 
       setStoredNullifier(nh);
       setNullifier(nh);
       setVerified(true);
-      setMessage("Verified successfully");
+      setMessage(world_username ? `Verified as @${world_username}` : "Verified successfully");
     } catch (err) {
       setMessage((err as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [MOCK, action, isInstalled, minikit, signal]);
+  }, [MOCK, action, isInstalled, minikit, signal, loading]);
 
   const value = useMemo<WorldAuthContextValue>(() => ({
     verified,

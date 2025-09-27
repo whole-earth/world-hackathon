@@ -1,18 +1,16 @@
 import type { Metadata } from 'next'
-import { redirect } from 'next/navigation'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
-import { isThemeUnlocked } from '@/server/services/unlocks'
-import { ThemeLockedGate } from '@/components/ThemeLockedGate'
+import { isChannelUnlocked } from '@/server/services/unlocks'
+import { ThemeLockedGate } from '@/components/ExplorePanel/ThemeLockedGate'
+import { THEMES } from '@/constants/themes'
+import { ChannelPostsList } from '@/components/ExplorePanel/ChannelPostsList'
+import { BackButton } from '@/components/Header/BackButton'
+import { ThemeSwipeShell } from '@/components/ThemeSwipeShell'
+import { mapThemeToChannel } from '@/constants/themeChannelMap'
 
 type Params = { params: Promise<{ slug: string }> }
 
-const THEMES: Record<string, { title: string; desc: string }> = {
-  env: { title: 'Environment', desc: 'Climate, ecology, energy' },
-  tools: { title: 'Tools', desc: 'Hardware, software, craft' },
-  shelter: { title: 'Shelter', desc: 'Housing, architecture' },
-  education: { title: 'Education', desc: 'Learning, pedagogy' },
-  crypto: { title: 'Cryptography', desc: 'Security, protocols' },
-}
+// THEMES imported from shared constants
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
@@ -25,9 +23,10 @@ export default async function ThemePage({ params }: Params) {
   const { slug } = await params
   // Server-side enforcement: must be verified and must have unlocked this theme
   let allowed = false
+  const channelSlug = mapThemeToChannel(slug)
   try {
-    const { nullifier_hash } = await ensureVerifiedNullifier({})
-    allowed = await isThemeUnlocked(nullifier_hash, slug)
+    const { nullifier_hash } = await ensureVerifiedNullifier({ allowAutoMock: false })
+    allowed = await isChannelUnlocked(nullifier_hash, channelSlug)
   } catch {
     allowed = false
   }
@@ -40,16 +39,22 @@ export default async function ThemePage({ params }: Params) {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-200 border border-green-500/40">Unlocked</span>
-      </header>
-      <p className="text-white/80">{desc}</p>
+    <ThemeSwipeShell>
+      <div className="p-4 space-y-4">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <h1 className="text-2xl font-semibold">{title}</h1>
+          </div>
+          <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-200 border border-green-500/40">Unlocked</span>
+        </header>
+        <p className="text-white/80">{desc}</p>
 
-      <div className="mt-6 rounded-lg border border-white/10 bg-white/5 p-4">
-        <p className="text-sm text-white/70">This is a placeholder theme page. Replace with real content once the catalog and filters are wired to the database.</p>
+        {/* Channel posts for this theme (no demo items) */}
+        <div className="mt-4 h-[70vh] rounded-lg border border-white/10 bg-neutral-900/40 relative">
+          <ChannelPostsList channelSlug={channelSlug} title={title} />
+        </div>
       </div>
-    </div>
+    </ThemeSwipeShell>
   )
 }

@@ -10,6 +10,8 @@ const MinikitContext = createContext<MinikitContextType | undefined>(undefined)
 export function MinikitProvider({ children }: { children: React.ReactNode }) {
   const [isInstalled, setIsInstalled] = useState(false)
   const [isReady, setIsReady] = useState(false)
+  const appId = (process.env.NEXT_PUBLIC_WORLD_APP_ID || '').trim()
+  const hasAppId = appId.startsWith('app_')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -39,6 +41,13 @@ export function MinikitProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Allow SDK provider to install, then check; poll briefly to catch late install
+    if (!hasAppId) {
+      // Without an App ID, skip MiniKit install checks entirely.
+      setIsInstalled(false)
+      setIsReady(false)
+      return
+    }
+
     const timeoutId = window.setTimeout(() => {
       if (safeCheck()) return
       let tries = 0
@@ -53,9 +62,10 @@ export function MinikitProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false
+      // timeoutId only defined when hasAppId
       window.clearTimeout(timeoutId)
     }
-  }, [])
+  }, [hasAppId])
 
   const value = useMemo<MinikitContextType>(() => ({
     minikit: MiniKit,
@@ -65,9 +75,13 @@ export function MinikitProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <MinikitContext.Provider value={value}>
-      <MiniKitSDKProvider>
-        {children}
-      </MiniKitSDKProvider>
+      {hasAppId ? (
+        <MiniKitSDKProvider appId={appId}>
+          {children}
+        </MiniKitSDKProvider>
+      ) : (
+        children
+      )}
     </MinikitContext.Provider>
   )
 }

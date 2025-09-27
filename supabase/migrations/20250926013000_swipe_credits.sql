@@ -38,9 +38,9 @@ begin
   end if;
   perform public.ensure_user_credits(p_nullifier);
   update public.user_credits
-    set balance = balance + p_amount, updated_at = now()
+    set credits = credits + p_amount, updated_at = now()
     where worldcoin_nullifier = p_nullifier
-    returning balance into new_balance;
+    returning credits into new_balance;
   insert into public.credits_ledger (worldcoin_nullifier, delta, reason)
     values (p_nullifier, p_amount, coalesce(p_reason, 'add'));
   return new_balance;
@@ -53,15 +53,15 @@ returns table (ok boolean, balance integer) as $$
 declare new_balance integer;
 begin
   if p_amount is null or p_amount <= 0 then
-    return query select false, (select balance from public.user_credits where worldcoin_nullifier = p_nullifier);
+    return query select false, (select credits from public.user_credits where worldcoin_nullifier = p_nullifier);
   end if;
   perform public.ensure_user_credits(p_nullifier);
   update public.user_credits
-    set balance = balance - p_amount, updated_at = now()
-    where worldcoin_nullifier = p_nullifier and balance >= p_amount
-    returning balance into new_balance;
+    set credits = credits - p_amount, updated_at = now()
+    where worldcoin_nullifier = p_nullifier and credits >= p_amount
+    returning credits into new_balance;
   if not found then
-    return query select false, (select balance from public.user_credits where worldcoin_nullifier = p_nullifier);
+    return query select false, (select credits from public.user_credits where worldcoin_nullifier = p_nullifier);
   end if;
   insert into public.credits_ledger (worldcoin_nullifier, delta, reason, theme_slug)
     values (p_nullifier, -p_amount, coalesce(p_reason, 'spend'), p_theme);

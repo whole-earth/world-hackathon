@@ -1,7 +1,7 @@
 "use client";
 import { LandingScreen } from "@/components/LandingScreen";
 import { useWorldVerification } from "@/hooks/useWorldVerification";
-import { SwipeShell } from "@/components/Swipe/SwipeShell";
+import { SwipeShell } from "@/components/SwipeShell";
 
 export default function Home() {
   const { verified } = useWorldVerification();

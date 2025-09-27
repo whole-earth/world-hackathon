@@ -12,9 +12,10 @@ import {
 import { useWorldcoin } from '@/providers/AppProvider'
 import { MiniKit, Tokens, tokenToDecimals, type PayCommandInput } from '@worldcoin/minikit-js'
 import { useWorldPay } from '@/hooks/useWorldPay'
-import { unlockThemeWithPaymentAction, spendCreditsAndUnlockAction } from '@/server/actions'
+import { unlockChannelWithPaymentAction, spendCreditsAndUnlockAction } from '@/server/actions'
 import { useToast } from '@/providers/ToastProvider'
 import { useCredits } from '@/providers/CreditsProvider'
+import { mapThemeToChannel } from '@/constants/themeChannelMap'
 
 type Props = {
   open: boolean
@@ -25,6 +26,7 @@ type Props = {
 }
 
 type Step = 'intro' | 'method' | 'processing' | 'done' | 'error'
+
 
 // Toasts handled by provider; local type not needed
 
@@ -61,7 +63,8 @@ export function ThemeUnlockDrawer({ open, onOpenChange, themeSlug, themeTitle, o
 
       if (isMock) {
         await autoApproveWorldPay(1, description)
-        await unlockThemeWithPaymentAction({ reference: 'mock', themeSlug })
+        const channelSlug = mapThemeToChannel(themeSlug)
+        await unlockChannelWithPaymentAction({ reference: 'mock', channelSlug })
         setMessage('Unlocked (mock)')
         setStep('done')
         onUnlocked?.(themeSlug)
@@ -97,7 +100,8 @@ export function ThemeUnlockDrawer({ open, onOpenChange, themeSlug, themeTitle, o
       }
 
       setMessage('Unlocking…')
-      await unlockThemeWithPaymentAction({ reference: init.reference, themeSlug })
+      const channelSlug = mapThemeToChannel(themeSlug)
+      await unlockChannelWithPaymentAction({ reference: init.reference, channelSlug })
       setStep('done')
       setMessage('Unlocked!')
       pushToast('success', 'Unlocked with WLD')

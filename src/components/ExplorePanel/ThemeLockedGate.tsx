@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useMemo, useState } from 'react'
-import { ThemeUnlockDrawer } from '@/components/ThemeUnlockDrawer'
+import { ThemeUnlockDrawer } from '@/components/ExplorePanel/ThemeUnlockDrawer'
+import { BackButton } from '@/components/Header/BackButton'
 import { useRouter } from 'next/navigation'
 
 type Props = {
@@ -23,7 +24,10 @@ export function ThemeLockedGate({ slug, title = 'Theme', desc }: Props) {
   return (
     <div className="p-4 space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{themeTitle}</h1>
+        <div className="flex items-center gap-3">
+          <BackButton />
+          <h1 className="text-2xl font-semibold">{themeTitle}</h1>
+        </div>
         <span className="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-200 border border-yellow-500/40">Locked</span>
       </header>
       {desc && <p className="text-white/80">{desc}</p>}
@@ -47,4 +51,3 @@ export function ThemeLockedGate({ slug, title = 'Theme', desc }: Props) {
     </div>
   )
 }
-

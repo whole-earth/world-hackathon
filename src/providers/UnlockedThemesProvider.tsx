@@ -2,7 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorldAuth } from '@/providers/WorldAuthProvider'
-import { getUnlockedThemesAction } from '@/server/actions'
+import { getUnlockedChannelsAction } from '@/server/actions'
+import { CHANNEL_TO_THEME } from '@/constants/themeChannelMap'
 
 type UnlockedThemesContextValue = {
   unlocked: Set<string>
@@ -101,8 +102,12 @@ export function UnlockedThemesProvider({ children }: { children: React.ReactNode
     if (syncingRef.current) return
     syncingRef.current = true
     try {
-      const res = await getUnlockedThemesAction()
-      const next = new Set(res.themes)
+      const res = await getUnlockedChannelsAction()
+      // Map canonical channel slugs to theme slugs via shared map
+      const themeSlugs = res.channels
+        .map(channelSlug => CHANNEL_TO_THEME[channelSlug] || null)
+        .filter(Boolean) as string[]
+      const next = new Set(themeSlugs)
       setUnlocked(next)
       persist(next)
       markSyncedNow()
@@ -144,4 +149,3 @@ export function useUnlockedThemes(): UnlockedThemesContextValue {
   if (!ctx) throw new Error('useUnlockedThemes must be used within UnlockedThemesProvider')
   return ctx
 }
-

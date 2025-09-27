@@ -1,28 +1,25 @@
-// Theme unlocks shared types
+// Channel unlocks types
 
-export type ThemeUnlockRow = {
-  id: string
+export type ChannelUnlockRow = {
   worldcoin_nullifier: string
-  theme_slug: string
-  method: 'payment' | 'credits' | 'mock'
-  payment_reference: string | null
+  channel_slug: string
+  unlocked_via: 'payment' | 'credits'
   created_at: string
 }
 
-export type CreateThemeUnlockInput = {
+export type CreateChannelUnlockInput = {
   worldcoin_nullifier: string
-  theme_slug: string
-  method: 'payment' | 'credits' | 'mock'
-  payment_reference?: string | null
+  channel_slug: string
+  unlocked_via: 'payment' | 'credits'
 }
 
-export type UnlockThemeWithPaymentInput = { reference: string; themeSlug: string }
-export type UnlockThemeWithPaymentResult = {
+export type UnlockChannelWithPaymentInput = { reference: string; channelSlug: string }
+export type UnlockChannelWithPaymentResult = {
   ok: true
   unlocked: boolean
-  themeSlug: string
-  method: 'payment' | 'mock'
+  channelSlug: string
+  method: 'payment' | 'credits'
 }
 
-export type GetUnlockedThemesResult = { ok: true; themes: string[] }
+export type GetUnlockedChannelsResult = { ok: true; channels: string[] }
 

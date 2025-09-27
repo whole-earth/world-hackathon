@@ -5,4 +5,7 @@ export * from './credits'
 export * from './unlocks'
 export * from './profiles'
 export * from './providers'
+export * from './votes'
+export * from './humanity'
+export * from './upload'
 // budgets removed in favor of credits-only balance
