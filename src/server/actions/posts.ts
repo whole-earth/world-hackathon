@@ -6,34 +6,33 @@ import { assertRateLimit } from '@/server/lib/rate-limit'
 export type PostRow = {
   id: string
   status: 'submitted' | 'catalog' | 'rejected'
-  channel_slug: string
+  category?: string | null
   title: string
   thumbnail_url: string | null
   source_url: string | null
   submitted_by: string
-  yay_count: number
-  nay_count: number
   created_at: string
   accepted_at: string | null
 }
 
-export async function getPostsByChannelAction(params: {
-  channelSlug: string
+
+export async function getPostsByCategoryAction(params: {
+  category: string
   status?: 'submitted' | 'catalog' | 'rejected'
   limit?: number
   cursor?: string | null
 }) {
-  const { channelSlug, status = 'catalog', limit = 20, cursor } = params
+  const { category, status = 'catalog', limit = 20, cursor } = params
   try {
-    await assertRateLimit('posts-by-channel', 20, 60_000)
+    await assertRateLimit('posts-by-category', 20, 60_000)
 
     const supabase = getSupabaseAdmin()
     let query = supabase
       .from('posts')
       .select(
-        'id, status, channel_slug, title, thumbnail_url, source_url, submitted_by, yay_count, nay_count, created_at, accepted_at'
+        'id, status, category, title, thumbnail_url, source_url, submitted_by, created_at, accepted_at'
       )
-      .eq('channel_slug', channelSlug)
+      .eq('category', category)
       .eq('status', status)
       .order('created_at', { ascending: false })
       .limit(limit)
@@ -44,7 +43,7 @@ export async function getPostsByChannelAction(params: {
 
     const { data, error } = await query
     if (error) {
-      console.error('getPostsByChannelAction error:', error)
+      console.error('getPostsByCategoryAction error:', error)
       return { ok: false as const, error: 'Failed to load posts' }
     }
 
@@ -56,8 +55,7 @@ export async function getPostsByChannelAction(params: {
       nextCursor: items.length > 0 ? items[items.length - 1].created_at : null,
     }
   } catch (err) {
-    console.error('getPostsByChannelAction exception:', err)
+    console.error('getPostsByCategoryAction exception:', err)
     return { ok: false as const, error: 'Internal server error' }
   }
 }
-

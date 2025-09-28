@@ -163,7 +163,7 @@ export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function T
       try { onDragDirectionChange?.(null) } catch {}
       onSwipe?.(dir, currentItem, currentIdx)
     }
-  }, [controls, visible.length, items, index, onSwipe, dragX])
+  }, [controls, visible.length, items, index, onSwipe, dragX, onDragDirectionChange])
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({

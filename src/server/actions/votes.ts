@@ -1,6 +1,5 @@
 "use server"
 
-import { headers } from 'next/headers'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
 import { upsertProfileByNullifier } from '@/server/services'
 import { recordVote } from '@/server/services/votes'
@@ -16,9 +15,7 @@ export async function recordVoteAction(input: RecordVoteInput): Promise<RecordVo
   const yay = !!input?.yay
   if (!postId || !isUUID(postId)) throw new Error('Invalid postId')
 
-  // Optional rate limit by IP (soft)
-  const h = await headers()
-  const _ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || 'unknown'
+  // Optional: IP-based rate limiting can be re-enabled later using next/headers
 
   const { nullifier_hash } = await ensureVerifiedNullifier({})
 
@@ -34,4 +31,3 @@ export async function recordVoteAction(input: RecordVoteInput): Promise<RecordVo
   const res = await recordVote(nullifier_hash, postId, yay)
   return { ok: true, recorded: res.recorded }
 }
-

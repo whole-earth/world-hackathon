@@ -39,6 +39,12 @@ export function SwipeShell() {
       }
       // Trigger a server-side mutation flush when switching tabs
       try { void flush(); } catch {}
+      
+      // Reset channels state when navigating to channels panel
+      if (target === 2) {
+        console.log('SwipeShell: Dispatching channels:reset event')
+        window.dispatchEvent(new CustomEvent('channels:reset'));
+      }
     }
     setProgress(target);
   }, [progress, flush]);
@@ -53,13 +59,13 @@ export function SwipeShell() {
 
   // Listen for upload swipe lock events from UploadPanel
   useEffect(() => {
+    const isCustomEvent = (e: Event): e is CustomEvent<unknown> => 'detail' in (e as unknown as Record<string, unknown>)
     function onLock(e: Event) {
-      const any = e as CustomEvent
-      setUploadLocked(!!any.detail)
+      if (isCustomEvent(e)) setUploadLocked(Boolean(e.detail))
     }
     if (typeof window !== 'undefined') {
-      window.addEventListener('swipe:lock', onLock as any)
-      return () => window.removeEventListener('swipe:lock', onLock as any)
+      window.addEventListener('swipe:lock', onLock as EventListener)
+      return () => window.removeEventListener('swipe:lock', onLock as EventListener)
     }
     return () => {}
   }, [])
@@ -88,7 +94,7 @@ export function SwipeShell() {
     startProgressRef.current = progress;
     axisRef.current = 'none';
     setIsDragging(false);
-  }, [progress]);
+  }, [progress, uploadLocked]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (startXRef.current == null || startYRef.current == null) return;
@@ -163,7 +169,7 @@ export function SwipeShell() {
     startProgressRef.current = progress;
     axisRef.current = 'none';
     setIsDragging(false);
-  }, [progress]);
+  }, [progress, uploadLocked]);
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (pointerIdRef.current == null || startXRef.current == null) return;
     const dx = e.clientX - startXRef.current;

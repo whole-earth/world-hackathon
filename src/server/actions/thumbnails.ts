@@ -31,13 +31,15 @@ export async function uploadThumbnailFromUrlAction(input: UploadThumbnailInput):
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
       .upload(path, Buffer.from(arrayBuffer), { contentType, upsert: true })
-    if (upErr && !('statusCode' in (upErr as any) && (upErr as any).statusCode === '409')) {
+    const hasStatusCode = (err: unknown): err is { statusCode?: string | number } =>
+      typeof err === 'object' && err !== null && 'statusCode' in err
+    if (upErr && !(hasStatusCode(upErr) && upErr.statusCode === '409')) {
       // 409 can occur if exists and upsert not honored; try to continue
       return { ok: false, error: 'Upload failed' }
     }
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
     return { ok: true, publicUrl: data.publicUrl, path }
-  } catch (e) {
+  } catch {
     return { ok: false, error: 'Internal server error' }
   }
 }

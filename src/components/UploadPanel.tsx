@@ -11,7 +11,7 @@ type Props = {
 }
 
 export function UploadPanel({ onDone }: Props) {
-  const { isHuman, verifyHumanity, loading: authLoading } = useWorldVerification()
+  const { isHuman, verifyHumanity } = useWorldVerification()
   const [query, setQuery] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,13 +56,13 @@ export function UploadPanel({ onDone }: Props) {
     }
   }, [stage, submitting, showPasteCatcher])
 
-  const looksLikeUrl = (value: string) => {
+  const looksLikeUrl = useCallback((value: string) => {
     const v = value.trim()
     if (!v) return false
     if (/^https?:\/\//i.test(v)) return true
     // bare domain like example.com/path
     return /^[a-z0-9.-]+\.[a-z]{2,}([/\?#].*)?$/i.test(v)
-  }
+  }, [])
 
   const handleSubmit = useCallback(async () => {
     const q = query.trim()
@@ -114,7 +114,7 @@ export function UploadPanel({ onDone }: Props) {
             }
             textLogged = true
           }
-        } catch (e) {
+        } catch (e: unknown) {
           console.warn('[UploadPanel] clipboard.readText() failed; trying read()', e)
         }
       } else {
@@ -124,11 +124,13 @@ export function UploadPanel({ onDone }: Props) {
       // 2) Try full clipboard read to support images/other MIME
       if ('read' in navigator.clipboard) {
         try {
-          const items = await (navigator.clipboard as any).read()
+          type ClipboardWithRead = Clipboard & { read?: () => Promise<ClipboardItems> }
+          const clip = navigator.clipboard as unknown as ClipboardWithRead
+          const items = await clip.read!()
           console.log('[UploadPanel] navigator.clipboard.read() items:', Array.isArray(items) ? items.length : typeof items)
           if (Array.isArray(items) && items.length > 0) {
             const first = items[0]
-            const types: string[] = first.types || []
+            const types = first.types || []
             if (types.includes('text/plain')) {
               const blob = await first.getType('text/plain')
               const text = await blob.text()
@@ -156,7 +158,7 @@ export function UploadPanel({ onDone }: Props) {
               return
             }
           }
-        } catch (err) {
+        } catch (err: unknown) {
           console.warn('[UploadPanel] clipboard.read() failed', err)
         }
       } else {
@@ -168,7 +170,7 @@ export function UploadPanel({ onDone }: Props) {
       if (!textLogged) {
         console.warn('[UploadPanel] Clipboard appears blocked; prompting manual paste')
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('[UploadPanel] Clipboard error:', e)
     } finally {
       setSubmitting(false)
@@ -225,9 +227,6 @@ export function UploadPanel({ onDone }: Props) {
                     return
                   }
                   setQuery(e.target.value)
-                }}
-                onKeyDown={(e) => {
-                  // handled above
                 }}
                 placeholder="Search or paste URL"
                 className="w-full rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 pl-10 pr-10 py-3 outline-none focus:ring-2 focus:ring-white/20"
@@ -332,10 +331,9 @@ function UploadStageTwo({ payload, onBack, onDone }: {
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<Array<{ title: string; url: string; summary?: string; thumbnail?: string | null }>>([])
   const [postedItem, setPostedItem] = useState<{ title: string; url: string; summary?: string; thumbnail?: string | null } | null>(null)
-  const [postedMsg, setPostedMsg] = useState<string | null>(null)
+  const [postedMsg] = useState<string | null>(null)
 
   // Run once per payload; avoid including server actions in deps to prevent HMR re-runs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let cancelled = false
     async function run() {
@@ -366,8 +364,9 @@ function UploadStageTwo({ payload, onBack, onDone }: {
           // Images/blobs: not supported yet
           if (!cancelled) setError('Images are not supported yet. Paste a link or text.')
         }
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Failed to process input')
+      } catch (e: unknown) {
+        const message = typeof e === 'object' && e && 'message' in e ? String((e as { message?: unknown }).message) : 'Failed to process input'
+        if (!cancelled) setError(message)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -387,12 +386,13 @@ function UploadStageTwo({ payload, onBack, onDone }: {
       try { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10) } catch {}
       setPostedItem(item)
       setResults([])
-    } catch (e: any) {
-      setError(e?.message || 'Failed to submit')
+    } catch (e: unknown) {
+      const message = typeof e === 'object' && e && 'message' in e ? String((e as { message?: unknown }).message) : 'Failed to submit'
+      setError(message)
     } finally {
       setLoading(false)
     }
-  }, [results, onDone])
+  }, [results])
 
   return (
     <div className="h-full w-full flex flex-col">

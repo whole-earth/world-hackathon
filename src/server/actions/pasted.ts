@@ -23,8 +23,7 @@ export async function processPastedContentAction(input: PastedContentInput): Pro
     }
     const id = `p_${Math.random().toString(36).slice(2)}`
     return { ok: true, id }
-  } catch (e) {
+  } catch {
     return { ok: false, error: 'Internal server error' }
   }
 }
-

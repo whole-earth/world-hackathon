@@ -31,7 +31,7 @@ export async function verifyHumanAndUpsertProfileAction(
   }
 
   // Determine humanity based on verification_level
-  const verification_level = (input.payload as any)?.verification_level as string | undefined
+  const verification_level = (input.payload as { verification_level?: string } | undefined)?.verification_level
   const is_human = isMock ? true : verification_level?.toLowerCase() === 'orb'
   if (!is_human && !isMock) {
     throw new Error('Proof of humanity requires Orb verification')

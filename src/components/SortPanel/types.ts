@@ -4,7 +4,7 @@ export type DemoCard = {
   id: string
   title: string
   subtitle?: string
-  color: string
+  image: string
   description?: string
   category: ThemeKey
 }

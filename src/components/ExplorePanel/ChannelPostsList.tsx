@@ -1,16 +1,17 @@
 "use client"
 
 import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Inbox } from 'lucide-react'
-import { getPostsByChannelAction, type PostRow } from '@/server/actions'
+import { getPostsByCategoryAction, type PostRow } from '@/server/actions'
 
 type Props = {
-  channelSlug: string
+  category: string
   title?: string
 }
 
-export function ChannelPostsList({ channelSlug, title }: Props) {
+export function ChannelPostsList({ category }: Props) {
   const router = useRouter()
   const [posts, setPosts] = useState<PostRow[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,7 +22,7 @@ export function ChannelPostsList({ channelSlug, title }: Props) {
     async function run() {
       setLoading(true)
       setError(null)
-      const res = await getPostsByChannelAction({ channelSlug, status: 'catalog', limit: 20 })
+      const res = await getPostsByCategoryAction({ category, status: 'catalog', limit: 20 })
       if (cancelled) return
       if (!res.ok) {
         setError(res.error || 'Failed to load posts')
@@ -35,7 +36,7 @@ export function ChannelPostsList({ channelSlug, title }: Props) {
     return () => {
       cancelled = true
     }
-  }, [channelSlug])
+  }, [category])
 
   const hasPosts = useMemo(() => (posts && posts.length > 0) || false, [posts])
 
@@ -75,40 +76,33 @@ export function ChannelPostsList({ channelSlug, title }: Props) {
   }
 
   return (
-    <div className="space-y-3 p-2 overflow-y-auto h-full">
-      {posts!.map((p) => (
-        <a
-          key={p.id}
-          href={p.source_url ?? '#'}
-          target={p.source_url ? '_blank' : undefined}
-          rel={p.source_url ? 'noreferrer' : undefined}
-          className="block rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition p-3"
-        >
-          <div className="flex gap-3">
-            {p.thumbnail_url ? (
-              <img
-                src={p.thumbnail_url}
-                alt="thumbnail"
-                className="w-16 h-16 rounded object-cover border border-white/10"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded bg-white/10 border border-white/10 flex items-center justify-center text-xs text-white/60">
-                No image
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium truncate">{p.title}</div>
-              <div className="mt-1 text-xs text-white/60 flex items-center gap-2">
-                <span>Yay {p.yay_count}</span>
-                <span className="opacity-50">•</span>
-                <span>Nay {p.nay_count}</span>
-                <span className="opacity-50">•</span>
-                <span>{new Date(p.created_at).toLocaleDateString()}</span>
-              </div>
+    <div className="p-2 overflow-y-auto h-full">
+      <div className="grid grid-cols-2 gap-3">
+        {posts!.map((p) => (
+          <a
+            key={p.id}
+            href={p.source_url ?? '#'}
+            target={p.source_url ? '_blank' : undefined}
+            rel={p.source_url ? 'noreferrer' : undefined}
+            className="block"
+          >
+            <div className="relative w-full rounded-md overflow-hidden border border-white/10 bg-white/5" style={{ paddingBottom: '75%' }}>
+              {p.thumbnail_url ? (
+                <Image
+                  src={p.thumbnail_url}
+                  alt={p.title || 'thumbnail'}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-white/60">No image</div>
+              )}
             </div>
-          </div>
-        </a>
-      ))}
+            <div className="mt-2 text-xs font-medium truncate text-white/90">{p.title}</div>
+          </a>
+        ))}
+      </div>
     </div>
   )
 }

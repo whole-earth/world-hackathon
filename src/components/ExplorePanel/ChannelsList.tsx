@@ -21,6 +21,53 @@ export function ChannelsList({ showHeader = true }: ChannelsListProps) {
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<{ id: string; title: string } | null>(null)
+  
+  // Reset state when component mounts (e.g., when navigating back to channels)
+  useEffect(() => {
+    setDrawerOpen(false)
+    setSelected(null)
+  }, [])
+  
+  // Reset state when component becomes visible again (e.g., when swiping back from theme)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        setDrawerOpen(false)
+        setSelected(null)
+      }
+    }
+    
+    const handleFocus = () => {
+      setDrawerOpen(false)
+      setSelected(null)
+    }
+    
+    // Listen for navigation events that might indicate we're back to the channels list
+    const handlePopState = () => {
+      setDrawerOpen(false)
+      setSelected(null)
+    }
+    
+    // Listen for custom reset event
+    const handleReset = () => {
+      console.log('ChannelsList: Resetting state due to channels:reset event')
+      setDrawerOpen(false)
+      setSelected(null)
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('popstate', handlePopState)
+    window.addEventListener('channels:reset', handleReset)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('popstate', handlePopState)
+      window.removeEventListener('channels:reset', handleReset)
+    }
+  }, [])
+  
   // Optional: light periodic refresh to catch server-side updates from other devices
   useEffect(() => {
     const id = window.setInterval(() => { void refresh() }, 30000)

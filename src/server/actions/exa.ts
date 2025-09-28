@@ -18,8 +18,6 @@ type ExaSDKItem = {
   thumbnail?: string | null
 }
 type ExaSearchResponse = { results?: ExaSDKItem[] } | ExaSDKItem[]
-type ExaContentsItem = { url?: string | null; title?: string | null; text?: string | null; image?: string | null; thumbnail?: string | null; summary?: string | null }
-type ExaContentsResponse = { contents?: ExaContentsItem[] } | ExaContentsItem[] | ExaContentsItem
 
 interface ExaClient {
   search: (query: string, options: ExaSearchOptions) => Promise<ExaSearchResponse>
@@ -27,12 +25,13 @@ interface ExaClient {
 
 async function getExa(): Promise<ExaClient> {
   // Lazy dynamic import to satisfy ESM and lint rules
-  const mod: any = await import('exa-js')
-  const Exa: any = mod?.default ?? mod
+  type ExaConstructor = new (apiKey: string) => ExaClient
+  const imported = (await import('exa-js')) as { default?: ExaConstructor }
+  const ExaCtor = (imported.default ?? (undefined as unknown as ExaConstructor)) as ExaConstructor
   const apiKey = process.env.EXA_API_KEY
   if (!apiKey) throw new Error('Missing EXA_API_KEY')
   // Use string constructor consistently to avoid header issues
-  return new Exa(apiKey)
+  return new ExaCtor(apiKey)
 }
 
 export type ExaItem = {
@@ -60,7 +59,7 @@ export async function exaSearchAction(input: ExaSearchInput): Promise<ExaSearchR
       thumbnail: (r.image || r.thumbnail || null) as string | null,
     }))
     return { ok: true, results: items }
-  } catch (e) {
+  } catch {
     return { ok: false, error: 'Failed to search with Exa' }
   }
 }
@@ -146,7 +145,7 @@ export async function submitMediaFromExaAction(input: SubmitMediaFromExaInput): 
       } catch {}
     }
 
-    const fullPayload: any = {
+    const fullPayload: Record<string, unknown> = {
       title,
       subtitle: safeHostname(url),
       color: input.color || '#0ea5e9',
@@ -164,7 +163,7 @@ export async function submitMediaFromExaAction(input: SubmitMediaFromExaInput): 
       .single()
     if (!error && data) return { ok: true, id: data.id }
     // Fallback: insert with minimal columns (schema compatibility)
-    const minimalPayload: any = {
+    const minimalPayload: Record<string, unknown> = {
       title,
       subtitle: safeHostname(url),
       color: input.color || '#0ea5e9',
@@ -178,7 +177,7 @@ export async function submitMediaFromExaAction(input: SubmitMediaFromExaInput): 
       .single()
     if (!error2 && data2) return { ok: true, id: data2.id }
     return { ok: false, error: 'Failed to post to inbox' }
-  } catch (e) {
+  } catch {
     return { ok: false, error: 'Internal server error' }
   }
 }
@@ -210,7 +209,7 @@ export async function processPastedValueAction(input: ProcessPastedValueInput): 
     const searched = await exaSearchAction({ query: prompt })
     if (!searched.ok) return { ok: false, error: searched.error }
     return { ok: true, mode: 'search', results: searched.results }
-  } catch (e) {
+  } catch {
     // Fail-soft: return an empty search result set instead of surfacing an error
     return { ok: true, mode: 'search', results: [] }
   }
@@ -240,13 +239,6 @@ function scoreTags(s: string): { tag: AllowedTag; score: number }[] {
   return scores.sort((a, b) => b.score - a.score)
 }
 
-async function fetchPageText(_exa: ExaClient, url: string): Promise<string> {
-  try {
-    const c = await fetchExaContents(url)
-    if (c?.text || c?.summary) return (c.summary || c.text) as string
-    return ''
-  } catch { return '' }
-}
 
 function classifyCategoryFromItem(it: { title: string; url: string; summary?: string }): AllowedTag {
   const hay = `${it.title} ${it.summary || ''} ${safeHostname(it.url)}`.toLowerCase()
@@ -269,12 +261,7 @@ function normalizeSearchResults(res: ExaSearchResponse): ExaSDKItem[] {
   return []
 }
 
-function getFirstContentsItem(res: ExaContentsResponse): ExaContentsItem | undefined {
-  if (!res) return undefined
-  if (Array.isArray(res)) return res[0]
-  if ('contents' in res && Array.isArray(res.contents)) return res.contents[0]
-  return res as ExaContentsItem
-}
+// (removed unused helpers fetchPageText, getFirstContentsItem)
 
 function isAllowedTag(v: unknown): v is AllowedTag {
   return v === 'env' || v === 'tools' || v === 'shelter' || v === 'education' || v === 'crypto'

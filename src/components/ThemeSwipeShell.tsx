@@ -29,6 +29,10 @@ export function ThemeSwipeShell({ children }: { children: React.ReactNode }) {
     }
     setProgress(target)
     if (target === 0) {
+      // Reset channels state when navigating to channels panel
+      console.log('ThemeSwipeShell: Dispatching channels:reset event')
+      window.dispatchEvent(new CustomEvent('channels:reset'))
+      
       // After reaching Channels, we can optionally navigate to the root
       navigatePendingRef.current = true
       // Use a small timeout to allow the transform transition to finish before routing

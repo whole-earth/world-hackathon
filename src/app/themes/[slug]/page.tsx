@@ -6,7 +6,7 @@ import { THEMES } from '@/constants/themes'
 import { ChannelPostsList } from '@/components/ExplorePanel/ChannelPostsList'
 import { BackButton } from '@/components/Header/BackButton'
 import { ThemeSwipeShell } from '@/components/ThemeSwipeShell'
-import { mapThemeToChannel } from '@/constants/themeChannelMap'
+import { mapThemeToChannel, legacyThemeSlugForChannel } from '@/constants/themeChannelMap'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -33,6 +33,8 @@ export default async function ThemePage({ params }: Params) {
   const meta = THEMES[slug]
   const title = meta?.title || 'Theme'
   const desc = meta?.desc || 'Curated catalog entries will appear here.'
+  // Map channel slug to category enum value for proper filtering
+  const category = legacyThemeSlugForChannel(channelSlug) || slug
 
   if (!allowed) {
     return <ThemeLockedGate slug={slug} title={title} desc={desc} />
@@ -52,7 +54,7 @@ export default async function ThemePage({ params }: Params) {
 
         {/* Channel posts for this theme (no demo items) */}
         <div className="mt-4 h-[70vh] rounded-lg border border-white/10 bg-neutral-900/40 relative">
-          <ChannelPostsList channelSlug={channelSlug} title={title} />
+          <ChannelPostsList category={category} title={title} />
         </div>
       </div>
     </ThemeSwipeShell>

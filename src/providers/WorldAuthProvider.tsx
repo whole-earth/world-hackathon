@@ -105,7 +105,7 @@ export function WorldAuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [MOCK, action, isInstalled, minikit, signal, loading]);
+  }, [MOCK, isInstalled, minikit, signal, loading, signinAction]);
 
   const verifyHumanity = useCallback(async () => {
     if (loading) return
