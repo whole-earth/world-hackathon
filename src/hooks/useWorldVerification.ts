@@ -9,6 +9,8 @@ export interface UseWorldVerification {
   message: string | null;
   isInstalled: boolean;
   verify: () => Promise<void>;
+  isHuman: boolean;
+  verifyHumanity: () => Promise<void>;
 }
 
 export function useWorldVerification(): UseWorldVerification {

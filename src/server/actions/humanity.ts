@@ -5,6 +5,8 @@ import { assertRateLimit } from '@/server/lib/rate-limit'
 import { ensureVerifiedNullifier } from '@/server/lib/world-verify'
 import { isWorldcoinMockEnabled } from '@/server/config/worldcoin'
 import { upsertProfileByNullifier } from '@/server/services'
+import { getSupabaseAdmin } from '@/lib/supabase/server'
+import { getWorldNullifierFromCookie } from '@/server/lib/cookies'
 import type { VerifyHumanAndUpsertInput, VerifyHumanAndUpsertResult } from '@/types'
 
 // Verifies World ID proof-of-humanity (Orb level) and upserts a profile
@@ -48,3 +50,27 @@ export async function verifyHumanAndUpsertProfileAction(
   return { ok: true, nullifier_hash, is_human: true, verification_level: verification_level ?? (isMock ? 'mock' : undefined), profile }
 }
 
+export type GetAuthStatusResult = {
+  ok: true
+  nullifier_hash: string | null
+  is_human: boolean
+}
+
+// Returns current auth session (cookie) and whether a profile exists (proxy for humanity verification)
+export async function getAuthStatusAction(): Promise<GetAuthStatusResult> {
+  const nh = await getWorldNullifierFromCookie()
+  if (!nh) return { ok: true, nullifier_hash: null, is_human: false }
+  try {
+    const admin = getSupabaseAdmin()
+    const { data, error } = await admin
+      .from('profiles')
+      .select('worldcoin_nullifier')
+      .eq('worldcoin_nullifier', nh)
+      .maybeSingle()
+    if (error) throw error
+    return { ok: true, nullifier_hash: nh, is_human: !!data }
+  } catch {
+    // If the check fails, still report the session but unknown humanity → false
+    return { ok: true, nullifier_hash: nh, is_human: false }
+  }
+}

@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowRight, ClipboardPaste, Link2, Search } from 'lucide-react'
 import Image from 'next/image'
 import { exaSearchAction, processPastedValueAction, submitMediaFromExaAction } from '@/server/actions'
+import { useWorldVerification } from '@/hooks/useWorldVerification'
 
 type Props = {
   onDone?: () => void
 }
 
 export function UploadPanel({ onDone }: Props) {
+  const { isHuman, verifyHumanity, loading: authLoading } = useWorldVerification()
   const [query, setQuery] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +67,11 @@ export function UploadPanel({ onDone }: Props) {
   const handleSubmit = useCallback(async () => {
     const q = query.trim()
     if (!q) return
+    if (!isHuman) {
+      setError('Please verify your humanity to upload.')
+      try { await verifyHumanity() } catch {}
+      return
+    }
     // If it looks like a URL, route through pasted-value processor (crawl+post)
     if (looksLikeUrl(q)) {
       setPayload({ kind: 'text', text: q })
@@ -74,11 +81,16 @@ export function UploadPanel({ onDone }: Props) {
       setPayload({ kind: 'search', query: q })
       setStage('process')
     }
-  }, [query, looksLikeUrl])
+  }, [query, looksLikeUrl, isHuman, verifyHumanity])
 
   const handlePasteFromClipboard = useCallback(async () => {
     setSubmitting(true)
     try {
+      if (!isHuman) {
+        setError('Please verify your humanity to upload.')
+        try { await verifyHumanity() } catch {}
+        return
+      }
       console.log('[UploadPanel] Paste button clicked')
       if (typeof window !== 'undefined' && !window.isSecureContext) {
         console.warn('[UploadPanel] Not a secure context; advanced clipboard read may be blocked. Falling back to readText if available.')
@@ -161,7 +173,7 @@ export function UploadPanel({ onDone }: Props) {
     } finally {
       setSubmitting(false)
     }
-  }, [])
+  }, [isHuman, verifyHumanity])
 
   if (stage === 'process' && payload) {
     return (
@@ -193,12 +205,29 @@ export function UploadPanel({ onDone }: Props) {
               </div>
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                readOnly={!isHuman}
+                onClick={() => { if (!isHuman) void verifyHumanity() }}
+                onFocus={() => { if (!isHuman) void verifyHumanity() }}
                 onKeyDown={(e) => {
+                  if (!isHuman) {
+                    e.preventDefault()
+                    void verifyHumanity()
+                    return
+                  }
                   if (e.key === 'Enter' && canSubmit) {
                     e.preventDefault()
                     handleSubmit()
                   }
+                }}
+                onChange={(e) => {
+                  if (!isHuman) {
+                    void verifyHumanity()
+                    return
+                  }
+                  setQuery(e.target.value)
+                }}
+                onKeyDown={(e) => {
+                  // handled above
                 }}
                 placeholder="Search or paste URL"
                 className="w-full rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 pl-10 pr-10 py-3 outline-none focus:ring-2 focus:ring-white/20"

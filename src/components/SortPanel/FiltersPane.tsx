@@ -10,10 +10,12 @@ import { CategorySelect } from './components/CategorySelect'
 import { GetMoreCard } from './components/GetMoreCard'
 import { DemoCardView } from './components/DemoCardView'
 import { ActionsBar } from './components/ActionsBar'
+import { useWorldVerification } from '@/hooks/useWorldVerification'
 
 type FiltersPaneProps = { showHeader?: boolean; initialCategory?: string }
 
 export function FiltersPane({ showHeader = true, initialCategory }: FiltersPaneProps) {
+  const { isHuman, verifyHumanity } = useWorldVerification()
   const { addSwipe } = useCredits()
   const [flippedCard, setFlippedCard] = useState<string | null>(null)
   const [thumbsAnimation, setThumbsAnimation] = useState<'left' | 'right' | null>(null)
@@ -132,6 +134,11 @@ export function FiltersPane({ showHeader = true, initialCategory }: FiltersPaneP
   }, [isLoadingMore, nextCursor, allItems, selectedCategory])
 
   const onSwipe = useCallback(async (dir: 'left' | 'right', item: DemoCard | MediaInboxItem, index: number) => {
+    if (!isHuman) {
+      // Block swipe and prompt humanity verification
+      try { await verifyHumanity() } catch {}
+      return
+    }
     // Check if this is the "Get More Cards" card
     if (item.id === 'get-more-cards') {
       await loadMoreItems()
@@ -161,10 +168,14 @@ export function FiltersPane({ showHeader = true, initialCategory }: FiltersPaneP
         // Silently ignore for demo data
       }
     }
-  }, [addSwipe, loadMoreItems])
+  }, [addSwipe, loadMoreItems, isHuman, verifyHumanity])
 
   // External swipe handlers for buttons
   const handleExternalSwipe = useCallback(async (dir: 'left' | 'right') => {
+    if (!isHuman) {
+      try { await verifyHumanity() } catch {}
+      return
+    }
     // Trigger thumbs animation
     setThumbsAnimation(dir)
     setTimeout(() => setThumbsAnimation(null), 300)
@@ -177,7 +188,7 @@ export function FiltersPane({ showHeader = true, initialCategory }: FiltersPaneP
     } else {
       tinderStackRef.current?.swipeRight()
     }
-  }, [])
+  }, [isHuman, verifyHumanity])
 
   const onFlip = useCallback((item: DemoCard) => {
     setFlippedCard(flippedCard === item.id ? null : item.id)
@@ -206,9 +217,18 @@ export function FiltersPane({ showHeader = true, initialCategory }: FiltersPaneP
           <CategorySelect value={selectedCategory} onChange={setSelectedCategory} />
           {/* Card container - fixed height */}
           <div className="h-[50vh] relative">
+            {!isHuman && (
+              <div
+                className="absolute inset-0"
+                style={{ pointerEvents: 'auto', zIndex: 200 }}
+                onClick={() => { void verifyHumanity() }}
+                onTouchStart={() => { void verifyHumanity() }}
+              />
+            )}
             <TinderStack
               ref={tinderStackRef}
               items={displayItems}
+              disabled={!isHuman}
               onSwipe={onSwipe as (dir: 'left' | 'right', item: unknown, index: number) => void}
               onDragDirectionChange={(dir) => {
                 if (dir) hadLiveDragRef.current = true

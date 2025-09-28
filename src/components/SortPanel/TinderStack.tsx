@@ -11,6 +11,7 @@ type Props<T> = {
   onSwipe?: (dir: Direction, item: T, index: number) => void
   maxVisible?: number
   onDragDirectionChange?: (dir: Direction | null) => void
+  disabled?: boolean
 }
 
 export interface TinderStackRef {
@@ -18,7 +19,7 @@ export interface TinderStackRef {
   swipeRight: () => void
 }
 
-export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function TinderStack({ items, renderCard, onSwipe, maxVisible = 4, onDragDirectionChange }, ref) {
+export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function TinderStack({ items, renderCard, onSwipe, maxVisible = 4, onDragDirectionChange, disabled = false }, ref) {
   const [index, setIndex] = useState(0)
   const controls = useAnimation()
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -171,7 +172,7 @@ export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function T
   }), [flyAway])
 
   const onDragEnd = useCallback((_e: unknown, info: { offset: { x: number }, velocity: { x: number } }) => {
-    if (flying) return
+    if (disabled || flying) return
     const dir = decide(info.offset.x, info.velocity.x)
     if (dir) {
       void flyAway(dir)
@@ -180,10 +181,10 @@ export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function T
       // Clear feedback when snap-back
       try { onDragDirectionChange?.(null) } catch {}
     }
-  }, [controls, decide, flyAway, flying, onDragDirectionChange])
+  }, [controls, decide, flyAway, flying, onDragDirectionChange, disabled])
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!visible.length || flying) return
+    if (disabled || !visible.length || flying) return
     if (e.key === 'ArrowRight') {
       e.preventDefault()
       void flyAway('right')
@@ -191,7 +192,7 @@ export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function T
       e.preventDefault()
       void flyAway('left')
     }
-  }, [visible.length, flying, flyAway])
+  }, [visible.length, flying, flyAway, disabled])
 
   return (
     <div
@@ -222,14 +223,14 @@ export const TinderStack = forwardRef<TinderStackRef, Props<unknown>>(function T
               {isTop ? (
                 <motion.div
                   className="absolute inset-0"
-                  drag="x"
+                  drag={disabled ? false : 'x'}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.25}
                   onDragStart={() => {}}
                   onDragEnd={onDragEnd}
                   animate={controls}
                   style={{ x: dragX }}
-                  whileDrag={{ rotate: 5, cursor: 'grabbing' }}
+                  whileDrag={disabled ? undefined : { rotate: 5, cursor: 'grabbing' }}
                 >
                   {renderCard(item, absIndex, true)}
                 </motion.div>
