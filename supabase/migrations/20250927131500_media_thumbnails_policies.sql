@@ -1,0 +1,5 @@
+-- Storage: media-thumbnails
+-- On hosted Supabase, storage schema ownership prevents altering storage.objects from migrations.
+-- This migration intentionally does not modify storage RLS or policies.
+-- The bucket was created with public=true, enabling getPublicUrl() for reads.
+-- Server-side writes use the service role and bypass RLS.

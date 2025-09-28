@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowRight, ClipboardPaste, Link2, Search } from 'lucide-react'
+import Image from 'next/image'
 import { exaSearchAction, processPastedValueAction, submitMediaFromExaAction } from '@/server/actions'
 
 type Props = {
@@ -24,6 +25,35 @@ export function UploadPanel({ onDone }: Props) {
 
   const canSubmit = useMemo(() => query.trim().length > 0 && !submitting, [query, submitting])
 
+  // Reset Upload UI to initial state
+  const resetUploadUI = useCallback(() => {
+    setQuery('')
+    setSubmitting(false)
+    setError(null)
+    setShowPasteCatcher(false)
+    setStage('input')
+    setPayload(null)
+  }, [])
+
+  // Back to Inbox: reset UI then navigate
+  const handleBackToInbox = useCallback(() => {
+    resetUploadUI()
+    onDone?.()
+  }, [onDone, resetUploadUI])
+
+  // Broadcast swipe lock state to the shell so it can disable horizontal swipes
+  useEffect(() => {
+    const locked = stage === 'process' || submitting || showPasteCatcher
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('swipe:lock', { detail: locked }))
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('swipe:lock', { detail: false }))
+      }
+    }
+  }, [stage, submitting, showPasteCatcher])
+
   const looksLikeUrl = (value: string) => {
     const v = value.trim()
     if (!v) return false
@@ -44,9 +74,10 @@ export function UploadPanel({ onDone }: Props) {
       setPayload({ kind: 'search', query: q })
       setStage('process')
     }
-  }, [query, onDone])
+  }, [query, looksLikeUrl])
 
   const handlePasteFromClipboard = useCallback(async () => {
+    setSubmitting(true)
     try {
       console.log('[UploadPanel] Paste button clicked')
       if (typeof window !== 'undefined' && !window.isSecureContext) {
@@ -127,21 +158,25 @@ export function UploadPanel({ onDone }: Props) {
       }
     } catch (e) {
       console.error('[UploadPanel] Clipboard error:', e)
+    } finally {
+      setSubmitting(false)
     }
   }, [])
 
   if (stage === 'process' && payload) {
     return (
-      <UploadStageTwo
-        payload={payload}
-        onBack={() => setStage('input')}
-        onDone={onDone}
-      />
+      <div data-swipe-lock>
+        <UploadStageTwo
+          payload={payload}
+          onBack={() => setStage('input')}
+          onDone={handleBackToInbox}
+        />
+      </div>
     )
   }
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full flex flex-col" {...(submitting || showPasteCatcher ? { 'data-swipe-lock': true } : {})}>
       <main className="flex-1 pt-16 pb-14 px-4 overflow-auto">
         <div className="mx-auto max-w-sm">
           {/* Gray box */}
@@ -240,7 +275,7 @@ function PasteCatcher({ onClose, onPastedText, onPastedFiles }: { onClose: () =>
     } catch (err) {
       console.error('[UploadPanel] Manual paste failed:', err)
     }
-  }, [])
+  }, [onPastedText, onPastedFiles])
   return (
     <div className="mt-4 p-3 rounded-lg border border-white/10 bg-black/40">
       <div className="text-white/80 text-sm mb-2">{hint}</div>
@@ -267,7 +302,11 @@ function UploadStageTwo({ payload, onBack, onDone }: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<Array<{ title: string; url: string; summary?: string; thumbnail?: string | null }>>([])
+  const [postedItem, setPostedItem] = useState<{ title: string; url: string; summary?: string; thumbnail?: string | null } | null>(null)
+  const [postedMsg, setPostedMsg] = useState<string | null>(null)
 
+  // Run once per payload; avoid including server actions in deps to prevent HMR re-runs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let cancelled = false
     async function run() {
@@ -282,7 +321,15 @@ function UploadStageTwo({ payload, onBack, onDone }: {
           const r = await processPastedValueAction({ value: payload.text })
           if (!r.ok) throw new Error(r.error)
           if (r.mode === 'posted') {
-            if (!cancelled) onDone?.()
+            if (!cancelled) {
+              try { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10) } catch {}
+              setPostedItem({
+                title: r.item.title,
+                url: r.item.url,
+                summary: r.item.summary,
+                thumbnail: r.item.thumbnail,
+              })
+            }
           } else if (r.mode === 'search') {
             if (!cancelled) setResults(r.results || [])
           }
@@ -308,7 +355,9 @@ function UploadStageTwo({ payload, onBack, onDone }: {
       if (!item) return
       const res = await submitMediaFromExaAction({ item })
       if (!res.ok) throw new Error(res.error)
-      onDone?.()
+      try { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(10) } catch {}
+      setPostedItem(item)
+      setResults([])
     } catch (e: any) {
       setError(e?.message || 'Failed to submit')
     } finally {
@@ -321,23 +370,61 @@ function UploadStageTwo({ payload, onBack, onDone }: {
       <main className="flex-1 pt-16 pb-14 px-4 overflow-auto">
         <div className="mx-auto max-w-sm">
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="text-white text-base font-medium mb-3">Upload — Step 2</div>
-            <div className="text-white/80 text-sm mb-4">
-              {payload.kind === 'search' && 'Select a result to post'}
-              {payload.kind === 'text' && 'Processing pasted input…'}
-              {(payload.kind === 'image' || payload.kind === 'blob') && 'Images are not supported yet'}
-            </div>
+            <div className="text-white text-base font-medium mb-3">{postedItem ? 'Upload — Step 3' : 'Upload — Step 2'}</div>
+            {!postedItem && (
+              <div className="text-white/80 text-sm mb-4">
+                {payload.kind === 'search' && 'Select a result to post'}
+                {payload.kind === 'text' && 'Processing pasted input…'}
+                {(payload.kind === 'image' || payload.kind === 'blob') && 'Images are not supported yet'}
+              </div>
+            )}
 
-            {error && (
+            {postedMsg && (
+              <div className="mt-4">
+                <div className="mx-auto w-fit px-3 py-1.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/30 text-sm">
+                  {postedMsg}
+                </div>
+              </div>
+            )}
+
+            {!postedItem && error && (
               <div className="text-red-300 text-sm mb-3">{error}</div>
             )}
 
-            {loading && (
+            {!postedItem && loading && results.length === 0 && (
               <div className="text-white/70 text-sm mb-3">Loading…</div>
             )}
 
+            {/* Posted confirmation view */}
+            {postedItem && (
+              <div className="space-y-2 mb-4">
+                <div className="w-full text-left rounded-md bg-black/30 border border-white/10 p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="h-14 w-14 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center">
+                      {postedItem.thumbnail ? (
+                        <Image src={postedItem.thumbnail} alt="thumbnail" width={56} height={56} className="h-full w-full object-cover" unoptimized />
+                      ) : (
+                        <Link2 className="h-6 w-6 text-white/60" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-white font-medium truncate">{postedItem.title}</div>
+                      <div className="text-white/60 text-xs truncate">{postedItem.url}</div>
+                      {postedItem.summary && (
+                        <div className="text-white/70 text-sm line-clamp-2 mt-1">{postedItem.summary}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="mx-auto w-fit px-3 py-1.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/30 text-sm">Posted</div>
+                <div className="flex justify-center">
+                  <button onClick={onDone} className="mt-1 px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/10 text-white text-sm">Back to Inbox</button>
+                </div>
+              </div>
+            )}
+
             {/* Results list */}
-            {results.length > 0 && (
+            {!postedItem && results.length > 0 && (
               <div className="space-y-2 mb-4">
                 {results.map((r, idx) => (
                   <button
@@ -348,7 +435,7 @@ function UploadStageTwo({ payload, onBack, onDone }: {
                     <div className="flex items-start gap-3">
                       <div className="h-14 w-14 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center">
                         {r.thumbnail ? (
-                          <img src={r.thumbnail} alt="thumbnail" className="h-full w-full object-cover" />
+                          <Image src={r.thumbnail} alt="thumbnail" width={56} height={56} className="h-full w-full object-cover" unoptimized />
                         ) : (
                           <Link2 className="h-6 w-6 text-white/60" />
                         )}
@@ -366,15 +453,17 @@ function UploadStageTwo({ payload, onBack, onDone }: {
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-2">
-              <button onClick={onBack} className="px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/10 text-white">Back</button>
-              {payload.kind === 'search' && (
-                <div className="text-white/60 text-xs">Tap a result to post</div>
-              )}
-              {results.length === 0 && payload.kind === 'search' && !loading && !error && (
-                <div className="text-white/50 text-sm">No results. Try a different query.</div>
-              )}
-            </div>
+            {!postedItem && (
+              <div className="flex items-center justify-between gap-2">
+                <button onClick={onBack} className="px-3 py-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/10 text-white">Back</button>
+                {payload.kind === 'search' && (
+                  <div className="text-white/60 text-xs">Tap a result to post</div>
+                )}
+                {results.length === 0 && payload.kind === 'search' && !loading && !error && (
+                  <div className="text-white/50 text-sm">No results. Try a different query.</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>

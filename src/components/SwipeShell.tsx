@@ -25,6 +25,7 @@ export function SwipeShell() {
   const startProgressRef = useRef<number>(2);
   const startYRef = useRef<number | null>(null);
   const axisRef = useRef<'none' | 'x' | 'y'>('none');
+  const [uploadLocked, setUploadLocked] = useState(false);
 
   const getContainerWidth = () => containerRef.current?.clientWidth || window.innerWidth || 1;
 
@@ -50,7 +51,28 @@ export function SwipeShell() {
     else if (tab === 'upload') setProgress(0);
   }, [searchParams]);
 
+  // Listen for upload swipe lock events from UploadPanel
+  useEffect(() => {
+    function onLock(e: Event) {
+      const any = e as CustomEvent
+      setUploadLocked(!!any.detail)
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('swipe:lock', onLock as any)
+      return () => window.removeEventListener('swipe:lock', onLock as any)
+    }
+    return () => {}
+  }, [])
+
   const onTouchStart = useCallback((e: React.TouchEvent) => {
+    // Global lock when Upload is active and processing
+    if (uploadLocked && Math.round(progress) === 0) {
+      startXRef.current = null
+      startYRef.current = null
+      axisRef.current = 'none'
+      setIsDragging(false)
+      return
+    }
     const target = e.target as Element | null
     if (target && target.closest('[data-swipe-lock]')) {
       // Ignore shell swipe if starting inside a locked region (e.g., Tinder stack)
@@ -89,6 +111,15 @@ export function SwipeShell() {
 
   const onTouchEnd = useCallback(() => {
     if (axisRef.current === 'x') {
+      if (uploadLocked && Math.round(progress) === 0) {
+        // Keep on Upload when locked
+        snapTo(0)
+        axisRef.current = 'none'
+        startXRef.current = null
+        startYRef.current = null
+        setIsDragging(false)
+        return
+      }
       const start = startProgressRef.current;
       const curr = progress;
       const threshold = 0.2; // panel width fraction
@@ -103,11 +134,19 @@ export function SwipeShell() {
     startXRef.current = null;
     startYRef.current = null;
     setIsDragging(false);
-  }, [progress, snapTo]);
+  }, [progress, snapTo, uploadLocked]);
 
   // Pointer (mouse/pen) support for desktop
   const pointerIdRef = useRef<number | null>(null);
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (uploadLocked && Math.round(progress) === 0) {
+      pointerIdRef.current = null
+      startXRef.current = null
+      startYRef.current = null
+      axisRef.current = 'none'
+      setIsDragging(false)
+      return
+    }
     const target = e.target as Element | null
     if (target && target.closest('[data-swipe-lock]')) {
       // Do not start shell swipe when interacting inside locked region
@@ -205,7 +244,7 @@ export function SwipeShell() {
         onPointerUp={onPointerUp}
       >
         {/* Upload - far left */}
-        <section className="w-1/3 h-full bg-neutral-900 border-r border-neutral-800">
+        <section className="w-1/3 h-full bg-neutral-900 border-r border-neutral-800" {...(uploadLocked ? { 'data-swipe-lock': true } : {})}>
           <UploadPanel onDone={() => snapTo(1)} />
         </section>
         {/* Filters - middle */}
@@ -221,7 +260,7 @@ export function SwipeShell() {
       {/* Bottom pill tabs (body is max-width:700px) */}
       <div className="absolute bottom-8 left-0 right-0">
         <div className="w-full px-4 flex justify-center">
-          <div className="relative w-48 rounded-full bg-white/10 backdrop-blur px-1 py-1 flex items-center border border-white/15">
+          <div className={`relative w-48 rounded-full bg-white/10 backdrop-blur px-1 py-1 flex items-center border border-white/15 ${uploadLocked && Math.round(progress) === 0 ? 'pointer-events-none opacity-70' : ''}`}>
           {/* Sliding indicator */}
           <div
             className="absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-white/20"
@@ -233,14 +272,14 @@ export function SwipeShell() {
           />
           <button
             className={`relative z-10 flex-1 inline-flex flex-col items-center justify-center gap-0.5 text-[10px] py-1 ${progress < 1.5 ? 'text-white' : 'text-white/80'}`}
-            onClick={() => snapTo(1)}
+            onClick={() => { if (!(uploadLocked && Math.round(progress) === 0)) snapTo(1) }}
           >
             <Inbox className="h-6 w-6" />
             <span>Filters</span>
           </button>
           <button
             className={`relative z-10 flex-1 inline-flex flex-col items-center justify-center gap-0.5 text-[10px] py-1 ${progress >= 1.5 ? 'text-white' : 'text-white/80'}`}
-            onClick={() => snapTo(2)}
+            onClick={() => { if (!(uploadLocked && Math.round(progress) === 0)) snapTo(2) }}
           >
             <Newspaper className="h-6 w-6" />
             <span>Channels</span>
