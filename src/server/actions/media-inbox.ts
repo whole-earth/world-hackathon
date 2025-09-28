@@ -12,6 +12,9 @@ export type MediaInboxItem = {
   description?: string
   category?: string
   uploaded_by: string
+  uploaded_by_username?: string | null
+  source_url?: string | null
+  thumbnail_url?: string | null
   created_at: string
 }
 
@@ -34,7 +37,7 @@ export async function getMediaInboxAction(params: {
 
     let base = supabase
       .from('media_inbox')
-      .select('id, title, subtitle, color, description, category, uploaded_by, created_at')
+      .select('id, title, subtitle, color, description, category, uploaded_by, uploaded_by_username, source_url, thumbnail_url, created_at')
       .order('created_at', { ascending: false })
       .limit(fetchCount)
 

@@ -7,6 +7,7 @@ import { ChannelsList } from "./ExplorePanel/ChannelsList";
 import { FiltersPane } from "./SortPanel/FiltersPane";
 import { Inbox, Newspaper, Plus } from 'lucide-react'
 import { HeaderCreditsPill } from '@/components/Header/HeaderCreditsPill'
+import { UploadPanel } from './UploadPanel'
 
 // Layout: [ Upload | Filters | Channels ]
 // Default shows Channels (translated -2 * width).
@@ -205,16 +206,7 @@ export function SwipeShell() {
       >
         {/* Upload - far left */}
         <section className="w-1/3 h-full bg-neutral-900 border-r border-neutral-800">
-          <div className="h-full w-full flex flex-col">
-            <main className="flex-1 pt-16 pb-14 px-4 overflow-auto">
-              <div className="mx-auto max-w-sm h-full flex items-center justify-center text-white/70">
-                <div className="text-center">
-                  <Plus className="h-10 w-10 mx-auto mb-2 text-white/80" />
-                  <p>Upload panel (coming soon)</p>
-                </div>
-              </div>
-            </main>
-          </div>
+          <UploadPanel onDone={() => snapTo(1)} />
         </section>
         {/* Filters - middle */}
         <section className="w-1/3 h-full bg-neutral-900 border-r border-neutral-800">

@@ -6,6 +6,9 @@ export type MediaInboxRow = {
   description?: string
   category?: string
   uploaded_by: string
+  uploaded_by_username?: string | null
+  source_url?: string | null
+  thumbnail_url?: string | null
   created_at: string
 }
 
